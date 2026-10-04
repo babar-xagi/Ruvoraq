@@ -4,10 +4,12 @@ mod error;
 mod extract;
 mod reply;
 mod respond;
+mod state;
 
-use std::{collections::BTreeMap, future::Future, io, net::SocketAddr};
+use std::{collections::BTreeMap, future::Future, io, net::SocketAddr, sync::Arc};
 
 use axum::{Router, handler::Handler, routing};
+use state::Services;
 use tokio::net::TcpListener;
 use tower_http::catch_panic::CatchPanicLayer;
 
@@ -18,6 +20,9 @@ pub use extract::{Json, Path, Query, Validate, ValidatedJson};
 pub use reply::{Reply, accepted, bad_request, created, invalid, no_content, not_found, ok};
 #[doc(hidden)]
 pub use respond::{HandlerOutput, Respond};
+pub use state::Inject;
+#[doc(hidden)]
+pub use state::{Dependency, RequiredService, ServiceProbe};
 
 /// The application identity and listening address.
 ///
@@ -45,6 +50,8 @@ impl Default for Settings {
 pub struct App {
     router: Router,
     settings: Settings,
+    services: Services,
+    required: Vec<(Dependency, &'static str, &'static str)>,
 }
 
 impl App {
@@ -100,12 +107,20 @@ impl App {
                 }
             }
             previous = Some(key);
+            app.required.extend(
+                (route.dependencies)()
+                    .into_iter()
+                    .map(|dependency| (dependency, route.method, route.path)),
+            );
             app = (route.register)(app);
         }
         Ok(app)
     }
 
-    /// Expose the Axum adapter with Ruvoraq fallbacks and panic handling applied.
+    /// Expose the Axum adapter with fallbacks, panic handling and shared services.
+    ///
+    /// For standalone router use, call check() first to validate attribute routes.
+    /// run() and serve() perform this check automatically.
     pub fn into_router(self) -> Router {
         self.router
             .fallback(|| async { Error::not_found("Route not found") })
@@ -113,6 +128,36 @@ impl App {
             .layer(CatchPanicLayer::custom(
                 |_: Box<dyn std::any::Any + Send>| Error::internal().into_response(),
             ))
+            .layer(axum::Extension(Arc::new(self.services)))
+    }
+
+    /// Register one shared instance of a concrete service type.
+    ///
+    /// Registering the same type again replaces the previous provider.
+    pub fn provide<T: Send + Sync + 'static>(self, service: T) -> Self {
+        self.provide_shared(Arc::new(service))
+    }
+
+    /// Register an existing Arc without wrapping it in another Arc.
+    pub fn provide_shared<T: Send + Sync + 'static>(mut self, service: Arc<T>) -> Self {
+        self.services.insert(service);
+        self
+    }
+
+    /// Validate dependencies of attribute-registered routes without binding.
+    pub fn check(&self) -> io::Result<()> {
+        for &(dependency, method, path) in &self.required {
+            if !self.services.contains(dependency) {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    format!(
+                        "missing dependency '{}' required by {method} {path}; register it with App::provide(...) in settings.rs",
+                        dependency.name
+                    ),
+                ));
+            }
+        }
+        Ok(())
     }
 
     pub fn settings(mut self, settings: Settings) -> Self {
@@ -170,6 +215,7 @@ impl App {
     ///
     /// Handles Ctrl+C on Unix/Windows and SIGTERM on Unix.
     pub async fn run(self) -> io::Result<()> {
+        self.check()?;
         let address = self.settings.address;
         let listener = TcpListener::bind(address).await.map_err(|error| {
             io::Error::new(
@@ -189,6 +235,7 @@ impl App {
     where
         F: Future<Output = ()> + Send + 'static,
     {
+        self.check()?;
         println!("Ruvoraq");
         println!("Application: {}", self.settings.app_name);
         println!("Server:      http://{}", listener.local_addr()?);
@@ -230,6 +277,7 @@ pub struct RouteRegistration {
     pub method: &'static str,
     pub path: &'static str,
     pub register: fn(App) -> App,
+    pub dependencies: fn() -> Vec<Dependency>,
 }
 
 inventory::collect!(RouteRegistration);

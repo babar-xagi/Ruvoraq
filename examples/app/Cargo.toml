@@ -1,0 +1,22 @@
+[package]
+name = "app"
+version = "0.1.0"
+edition = "2024"
+autobins = false
+
+[[bin]]
+name = "app"
+path = "src/settings.rs"
+
+[package.metadata.ruvoraq]
+project = true
+
+[dependencies.ruvoraq]
+path = "/home/xagi/Ruvoraq/crates/ruvoraq"
+
+[dependencies.serde]
+version = "1.0.229"
+features = ["derive"]
+
+# Keep this project independent of any surrounding Cargo workspace.
+[workspace]

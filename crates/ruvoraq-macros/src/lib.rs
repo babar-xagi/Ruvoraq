@@ -113,6 +113,13 @@ fn route(method: &str, attribute: TokenStream, item: TokenStream) -> TokenStream
             ::ruvoraq::__private::RouteRegistration {
                 method: #method,
                 path: #path,
+                dependencies: || {
+                    use ::ruvoraq::__private::RequiredService as _;
+                    let dependencies: &[Option<::ruvoraq::__private::Dependency>] = &[
+                        #((&&::ruvoraq::__private::ServiceProbe::<#argument_types>::default()).required_service()),*
+                    ];
+                    dependencies.iter().flatten().copied().collect()
+                },
                 register: |app: ::ruvoraq::App| app.#builder(
                     #path,
                     |#(#argument_names: #argument_types),*| async move {
@@ -163,16 +170,16 @@ pub fn delete(attribute: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// Invoke once at the root of settings.rs, which Cargo uses as the binary target.
 /// The file must provide a settings() function returning ruvoraq::Settings.
+/// Optionally use bootstrap!(configure) with a function accepting and returning App
+/// to register shared services before startup.
 #[proc_macro]
 pub fn bootstrap(input: TokenStream) -> TokenStream {
-    if !input.is_empty() {
-        return syn::Error::new(
-            proc_macro::Span::call_site().into(),
-            "ruvoraq::bootstrap! takes no arguments",
-        )
-        .to_compile_error()
-        .into();
-    }
+    let configure = if input.is_empty() {
+        quote! {}
+    } else {
+        let path = parse_macro_input!(input as syn::Path);
+        quote! { let app = #path(app); }
+    };
 
     quote! {
         #[path = "main.rs"]
@@ -180,10 +187,9 @@ pub fn bootstrap(input: TokenStream) -> TokenStream {
 
         fn main() -> ::std::io::Result<()> {
             ::ruvoraq::run(async {
-                ::ruvoraq::App::auto()?
-                    .settings(settings())
-                    .run()
-                    .await
+                let app = ::ruvoraq::App::auto()?.settings(settings());
+                #configure
+                app.run().await
             })
         }
     }

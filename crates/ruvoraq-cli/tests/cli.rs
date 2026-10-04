@@ -434,6 +434,19 @@ fn generated_app_runs_through_dev_and_stops_on_interrupt_and_termination() {
     .unwrap();
 
     assert_success(&add_app(&project, &["add", "app", "school"]));
+    let settings_with_service = fs::read_to_string(&settings)
+        .unwrap()
+        .replace("ruvoraq::bootstrap!();", "ruvoraq::bootstrap!(configure);");
+    fs::write(&settings, format!("{settings_with_service}\npub struct Greeting(pub &'static str);\n\nfn configure(app: ruvoraq::App) -> ruvoraq::App {{\n    app.provide(Greeting(\"Hello from injected service\"))\n}}\n")).unwrap();
+    let main_path = project.join("src/main.rs");
+    let main_with_service = fs::read_to_string(&main_path).unwrap()
+        + r#"
+#[get("/injected")]
+async fn injected(service: Inject<crate::Greeting>) -> Value {
+    json!({"message":service.0.0})
+}
+"#;
+    fs::write(main_path, main_with_service).unwrap();
 
     for signal in ["INT", "TERM"] {
         let log_path = temp.0.join(format!("dev-{signal}.log"));
@@ -513,6 +526,27 @@ fn generated_app_runs_through_dev_and_stops_on_interrupt_and_termination() {
         assert_eq!(
             module_response.split("\r\n\r\n").nth(1).unwrap(),
             r#"{"name":"school","message":"Hello from school"}"#
+        );
+
+        let mut stream = TcpStream::connect(address.unwrap()).unwrap();
+        stream
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .unwrap();
+        stream
+            .set_write_timeout(Some(Duration::from_secs(5)))
+            .unwrap();
+        stream
+            .write_all(b"GET /injected HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
+            .unwrap();
+        let mut service_response = String::new();
+        stream.read_to_string(&mut service_response).unwrap();
+        assert!(
+            service_response.starts_with("HTTP/1.1 200 OK"),
+            "{service_response}"
+        );
+        assert_eq!(
+            service_response.split("\r\n\r\n").nth(1).unwrap(),
+            r#"{"message":"Hello from injected service"}"#
         );
 
         assert_success(
@@ -956,4 +990,64 @@ fn add_app_refuses_symlink_module_directories() {
         "not a symlink",
     );
     assert!(entries(&destination).is_empty());
+}
+
+#[test]
+fn bootstrap_configure_hook_registers_services_and_missing_providers_fail_before_startup() {
+    let temp = TempDir::new();
+    assert_success(&temp.run(&["new", "services-app"]));
+    let project = temp.0.join("services-app");
+    let settings_path = project.join("src/settings.rs");
+    let original = fs::read_to_string(&settings_path).unwrap();
+    let service = r#"
+pub struct Greeting(pub &'static str);
+
+fn configure(app: ruvoraq::App) -> ruvoraq::App {
+    app.provide(Greeting("Hello from shared service"))
+}
+"#;
+    fs::write(
+        &settings_path,
+        format!(
+            "{}\n{service}",
+            original.replace("ruvoraq::bootstrap!();", "ruvoraq::bootstrap!(configure);")
+        ),
+    )
+    .unwrap();
+    fs::write(
+        project.join("src/main.rs"),
+        r#"
+use ruvoraq::prelude::*;
+use crate::Greeting;
+
+#[get("/")]
+async fn hello(greeting: Inject<Greeting>) -> Value {
+    json!({"message":greeting.0.0})
+}
+"#,
+    )
+    .unwrap();
+    assert_success(&add_app(&project, &["add", "app", "school"]));
+    check_generated_project(&temp, &project);
+    // Keep the same route but remove the provider by using the default bootstrap.
+    fs::write(
+        &settings_path,
+        original.clone() + "\npub struct Greeting(pub &'static str);\n",
+    )
+    .unwrap();
+    let output = cargo_for_project(&project, "run");
+    assert!(!output.status.success());
+    assert!(
+        output.stdout.is_empty(),
+        "startup banner must not be printed"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("missing dependency") && stderr.contains("Greeting"),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains("App::provide") && stderr.contains("settings.rs"),
+        "{stderr}"
+    );
 }

@@ -4,7 +4,8 @@ Ruvoraq is being developed through small experiments. Experiment 001 delivered
 a protected three-file project generator. Experiment 002 added route attributes,
 automatic registration, server startup, settings, graceful shutdown and a development
 command. Experiment 003 added typed APIs and simple response helpers.
-**Experiment 004 adds optional app modules** with `ruvoraq add app <name>`.
+Experiment 004 added optional app modules with `ruvoraq add app <name>`.
+**Experiment 005 adds shared services and typed injection** with `Inject<T>`.
 Small projects still start with exactly three files.
 
 ## Quick start
@@ -117,6 +118,81 @@ are accepted; non-empty directories (including hidden entries), files and
 symlink targets are refused. Errors go to stderr with exit code 1. Files use
 exclusive creation; failures attempt to remove only entries created by that call.
 
+## Shared services (Experiment 005)
+
+Create a service once in settings.rs and receive it in handlers with `Inject<T>`.
+Requests share the same instance; the service itself does not need `Clone`.
+This supports shared configuration, counters, clients and application services.
+
+Here is an opt-in example using the `school` module from `ruvoraq add app school`.
+In src/apps/school/services.rs:
+
+```rust
+pub struct SchoolService {
+    pub message: &'static str,
+}
+```
+
+Expose the service to settings.rs by changing the services declaration in
+src/apps/school/mod.rs to `pub mod services;` (keep models/routes declarations).
+
+In src/apps/school/routes.rs:
+
+```rust
+use ruvoraq::prelude::*;
+use super::{models::AppInfo, services::SchoolService};
+
+#[get("/school")]
+async fn index(service: Inject<SchoolService>) -> AppInfo {
+    AppInfo {
+        name: "school",
+        message: service.message,
+    }
+}
+```
+
+In settings.rs, keep the existing settings function and `mod apps;`.
+Add this configure function and **replace** the existing bootstrap invocation:
+
+```rust
+fn configure(app: ruvoraq::App) -> ruvoraq::App {
+    app.provide(apps::school::services::SchoolService {
+        message: "Hello from shared service",
+    })
+}
+
+ruvoraq::bootstrap!(configure);
+```
+
+Start with `ruvoraq dev`, then request `http://127.0.0.1:8000/school`.
+main.rs needs no change. Existing apps using `ruvoraq::bootstrap!();` continue
+working; the configure hook is optional.
+
+Services can have synchronous or async methods; `Inject<T>` dereferences to
+`T`, so handlers call them normally: `service.method().await`.
+For JSON input, put `Inject<T>` before the body extractor.
+
+`App::provide(value)` owns and shares a concrete `Send + Sync + 'static` type.
+Use `App::provide_shared(arc)` to share an existing `Arc<T>`, such as test state.
+Registering the same type again replaces its previous provider. Separate apps
+have separate registries. Use interior mutability (for example, atomics or an
+appropriate mutex) for mutable state; there is no global service registry.
+
+Route attributes record required service types, including aliases and qualified
+`Inject<T>` paths. Startup validates them before `App::run` binds a socket.
+A missing provider names the service and route and tells you to register it in
+settings.rs. `App::check()` runs the same validation without starting a server.
+
+Explicit `App::get(...)` builder routes and standalone `into_router()` use
+runtime extraction. A missing service produces the generic JSON 500 envelope;
+call `check()` first when using a standalone router with attribute registrations.
+The normal bootstrap/run/serve path checks attribute dependencies automatically.
+
+Providers are explicitly constructed, and the configure hook is synchronous.
+Automatic constructor graphs, request-scoped providers, async provider factories
+and trait-based service resolution are deferred. Database, auth and AI are not
+part of this experiment.
+
 ## Optional app modules (Experiment 004)
 
 When your application grows, run this from its root:
@@ -176,8 +252,8 @@ attempts to undo completed writes and remove only its own entries; it reports
 incomplete rollback rather than deleting edited files. This is not a
 crash-recovery transaction.
 
-No modules are added by `ruvoraq new`. Database, auth, AI, dependency injection
-and automatic service construction remain future work.
+No modules are added by `ruvoraq new`. Database, auth, AI and automatic service
+construction remain future work. Typed shared services are opt-in as described above.
 
 ## Typed APIs (Experiment 003)
 
@@ -348,7 +424,7 @@ The server drains active requests on Ctrl+C (Unix/Windows) or SIGTERM (Unix).
 for tests and lifecycle integrations. A stuck handler can delay shutdown; a
 forced-shutdown timeout is deferred.
 
-There are no database, auth, AI, dependency-injection, OpenAPI,
+There are no database, auth, AI, automatic dependency construction, OpenAPI,
 validation-derive or hot-reload features in this experiment.
 
 ## Verification
@@ -368,9 +444,12 @@ route-only source, model derives, typed handler compilation, useful compile erro
 duplicate/missing/conflicting routes, and automatic registration across modules
 and conditional handlers. Typed API tests exercise JSON, path/query fields, headers,
 named statuses, direct model/result responses, custom response compatibility,
-validation, body limits, JSON 404/405, and suppression of internal error details. They cover router requests and typed requests over real HTTP.
+validation, body limits, JSON 404/405, and suppression of internal error details.
+Shared-state tests verify concurrent requests, app isolation, provider replacement,
+non-Clone services, type aliases, async service methods and missing dependencies.
+They cover router requests and typed requests over real HTTP.
 On Unix, a generated application is launched through `ruvoraq dev`, queried over
-HTTP (including an added module route), and stopped with both SIGINT and SIGTERM. Web tests use real local sockets
+HTTP (including module and injected-service routes), and stopped with both SIGINT and SIGTERM. Web tests use real local sockets
 to check all five methods, responses, 404/405, bind errors, and draining an active
 request. Generated-project checks run offline after workspace dependencies have
 been fetched, sharing ignored build artifacts under
