@@ -3,8 +3,9 @@
 Ruvoraq is being developed through small experiments. Experiment 001 delivered
 a protected three-file project generator. Experiment 002 added route attributes,
 automatic registration, server startup, settings, graceful shutdown and a development
-command. **Experiment 003 adds typed APIs**: JSON input/output, path and query
-parameters, headers, response status codes, explicit validation and consistent errors.
+command. Experiment 003 added typed APIs and simple response helpers.
+**Experiment 004 adds optional app modules** with `ruvoraq add app <name>`.
+Small projects still start with exactly three files.
 
 ## Quick start
 
@@ -115,6 +116,68 @@ device names are rejected. Paths are not accepted. Existing empty directories
 are accepted; non-empty directories (including hidden entries), files and
 symlink targets are refused. Errors go to stderr with exit code 1. Files use
 exclusive creation; failures attempt to remove only entries created by that call.
+
+## Optional app modules (Experiment 004)
+
+When your application grows, run this from its root:
+
+```sh
+ruvoraq add app school
+ruvoraq dev
+# In another terminal:
+curl http://127.0.0.1:8000/school
+```
+
+The command creates:
+
+```text
+src/apps/
+├── mod.rs
+└── school/
+    ├── mod.rs
+    ├── routes.rs
+    ├── models.rs
+    └── services.rs
+```
+
+It appends `mod apps;` to settings.rs once and adds `pub mod school;` to
+src/apps/mod.rs. Your existing settings, main.rs and Cargo.toml stay intact
+apart from that settings declaration. Normal Rust modules compile the app's
+routes, and existing route registration discovers them automatically.
+There is no runtime folder scanning or separate route list.
+
+The initial route returns:
+
+```json
+{"name":"school","message":"Hello from school"}
+```
+
+Routes handle HTTP, models describe data, and services hold application logic.
+These are ordinary Rust files; no framework base classes or service macros are
+required. Edit routes.rs to add typed handlers and use models/services as needed.
+Add another module with `ruvoraq add app billing`; it gets `GET /billing`.
+Route paths are explicit in attributes, so you can change them or add subpaths.
+
+App names use 1–64 lowercase ASCII letters, digits and underscores, starting
+with a letter or underscore. Rust keywords, Cargo build names, Windows device
+names and paths are rejected. Existing target files/directories, duplicate
+module declarations, malformed source and symlinked source paths are refused.
+Comments and existing declarations are preserved. Run `cargo fmt` when you
+want Rustfmt to sort module declarations.
+
+The command requires the current route-only scaffold with a single binary at
+src/settings.rs and `ruvoraq::bootstrap!();`. If you maintain custom inline,
+conditional or alternate-path apps wiring, the CLI reports it and leaves it
+for you to manage explicitly.
+
+New files use exclusive creation. Existing wiring files are staged beside the
+originals and replaced atomically, preserving file permissions. A failed add
+attempts to undo completed writes and remove only its own entries; it reports
+incomplete rollback rather than deleting edited files. This is not a
+crash-recovery transaction.
+
+No modules are added by `ruvoraq new`. Database, auth, AI, dependency injection
+and automatic service construction remain future work.
 
 ## Typed APIs (Experiment 003)
 
@@ -285,8 +348,8 @@ The server drains active requests on Ctrl+C (Unix/Windows) or SIGTERM (Unix).
 for tests and lifecycle integrations. A stuck handler can delay shutdown; a
 forced-shutdown timeout is deferred.
 
-There are no database, auth, AI, module, OpenAPI, validation-derive or hot-reload
-features in this experiment.
+There are no database, auth, AI, dependency-injection, OpenAPI,
+validation-derive or hot-reload features in this experiment.
 
 ## Verification
 
@@ -299,13 +362,15 @@ cargo clippy --workspace --all-targets -- -D warnings
 
 CLI tests verify the exact initial scaffold, overwrite protection, project
 recognition, launcher errors and exit codes, generated-project compilation,
+optional module scaffolds, multiple apps, source preservation, invalid names,
+custom-wiring refusals, symlink protection and rollback,
 route-only source, model derives, typed handler compilation, useful compile errors,
 duplicate/missing/conflicting routes, and automatic registration across modules
 and conditional handlers. Typed API tests exercise JSON, path/query fields, headers,
 named statuses, direct model/result responses, custom response compatibility,
 validation, body limits, JSON 404/405, and suppression of internal error details. They cover router requests and typed requests over real HTTP.
 On Unix, a generated application is launched through `ruvoraq dev`, queried over
-HTTP, and stopped with both SIGINT and SIGTERM. Web tests use real local sockets
+HTTP (including an added module route), and stopped with both SIGINT and SIGTERM. Web tests use real local sockets
 to check all five methods, responses, 404/405, bind errors, and draining an active
 request. Generated-project checks run offline after workspace dependencies have
 been fetched, sharing ignored build artifacts under

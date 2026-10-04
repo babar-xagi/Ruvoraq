@@ -433,6 +433,8 @@ fn generated_app_runs_through_dev_and_stops_on_interrupt_and_termination() {
     )
     .unwrap();
 
+    assert_success(&add_app(&project, &["add", "app", "school"]));
+
     for signal in ["INT", "TERM"] {
         let log_path = temp.0.join(format!("dev-{signal}.log"));
         let log = fs::File::create(&log_path).unwrap();
@@ -491,6 +493,27 @@ fn generated_app_runs_through_dev_and_stops_on_interrupt_and_termination() {
         stream.read_to_string(&mut response).unwrap();
         assert!(response.starts_with("HTTP/1.1 200 OK"), "{response}");
         assert_eq!(response.split("\r\n\r\n").nth(1).unwrap(), "Hello");
+
+        let mut stream = TcpStream::connect(address.unwrap()).unwrap();
+        stream
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .unwrap();
+        stream
+            .set_write_timeout(Some(Duration::from_secs(5)))
+            .unwrap();
+        stream
+            .write_all(b"GET /school HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
+            .unwrap();
+        let mut module_response = String::new();
+        stream.read_to_string(&mut module_response).unwrap();
+        assert!(
+            module_response.starts_with("HTTP/1.1 200 OK"),
+            "{module_response}"
+        );
+        assert_eq!(
+            module_response.split("\r\n\r\n").nth(1).unwrap(),
+            r#"{"name":"school","message":"Hello from school"}"#
+        );
 
         assert_success(
             &Command::new("kill")
@@ -720,4 +743,217 @@ async fn create() -> &'static str { "create" }
         stderr.contains("conflicting Ruvoraq route patterns"),
         "{stderr}"
     );
+}
+
+fn add_app(project: &Path, args: &[&str]) -> Output {
+    Command::new(env!("CARGO_BIN_EXE_ruvoraq"))
+        .current_dir(project)
+        .args(args)
+        .output()
+        .unwrap()
+}
+
+#[test]
+fn add_app_generates_modules_preserves_source_and_compiles_multiple_apps() {
+    let temp = TempDir::new();
+    assert_success(&temp.run(&["new", "modular"]));
+    let project = temp.0.join("modular");
+    let main = fs::read(project.join("src/main.rs")).unwrap();
+    let manifest = fs::read(project.join("Cargo.toml")).unwrap();
+    let settings = fs::read_to_string(project.join("src/settings.rs")).unwrap();
+    assert_success(&add_app(&project, &["add", "app", "school"]));
+    assert_eq!(
+        entries(&project),
+        [
+            "Cargo.toml",
+            "src/",
+            "src/apps/",
+            "src/apps/mod.rs",
+            "src/apps/school/",
+            "src/apps/school/mod.rs",
+            "src/apps/school/models.rs",
+            "src/apps/school/routes.rs",
+            "src/apps/school/services.rs",
+            "src/main.rs",
+            "src/settings.rs",
+        ]
+    );
+    assert_eq!(fs::read(project.join("src/main.rs")).unwrap(), main);
+    assert_eq!(fs::read(project.join("Cargo.toml")).unwrap(), manifest);
+    assert_eq!(
+        fs::read_to_string(project.join("src/settings.rs")).unwrap(),
+        format!("{}\nmod apps;\n", settings.trim_end())
+    );
+    let output = Command::new(env!("CARGO"))
+        .args(["fmt", "--manifest-path"])
+        .arg(project.join("Cargo.toml"))
+        .arg("--check")
+        .output()
+        .unwrap();
+    assert_success(&output);
+    let registry = project.join("src/apps/mod.rs");
+    fs::write(&registry, "// Keep this comment.\npub mod school;\n").unwrap();
+    assert_success(&add_app(&project, &["add", "app", "billing"]));
+    assert_eq!(
+        fs::read_to_string(&registry).unwrap(),
+        "// Keep this comment.\npub mod school;\npub mod billing;\n"
+    );
+    assert_eq!(
+        fs::read_to_string(project.join("src/settings.rs"))
+            .unwrap()
+            .matches("mod apps;")
+            .count(),
+        1
+    );
+    let before = entries(&project);
+    assert_error(
+        &add_app(&project, &["add", "app", "school"]),
+        "refusing to overwrite",
+    );
+    assert_eq!(entries(&project), before);
+    check_generated_project(&temp, &project);
+}
+
+#[test]
+fn add_app_help_names_and_project_checks_create_nothing() {
+    let temp = TempDir::new();
+    assert_success(&temp.run(&["add", "--help"]));
+    assert_success(&temp.run(&["add", "app", "--help"]));
+    for args in [
+        &["add"][..],
+        &["add", "app"][..],
+        &["add", "db"][..],
+        &["add", "app", "school", "extra"][..],
+    ] {
+        assert_error(&temp.run(args), "usage: ruvoraq add app");
+    }
+    assert_success(&temp.run(&["new", "names"]));
+    let project = temp.0.join("names");
+    let before = entries(&project);
+    for name in [
+        "",
+        "../escape",
+        "a/b",
+        "school-app",
+        "School",
+        "school app",
+        "1school",
+        "fn",
+        "_",
+        "nul",
+        "gen",
+    ] {
+        let output = add_app(&project, &["add", "app", name]);
+        assert!(!output.status.success(), "accepted {name}");
+        assert!(output.stdout.is_empty());
+        assert_eq!(entries(&project), before);
+    }
+    fs::write(
+        temp.0.join("Cargo.toml"),
+        "[package]\nname = \"ordinary\"\n",
+    )
+    .unwrap();
+    assert_error(
+        &temp.run(&["add", "app", "school"]),
+        "not a Ruvoraq project",
+    );
+    assert!(!temp.0.join("src").exists());
+}
+
+#[test]
+fn add_app_refuses_existing_paths_and_custom_module_wiring() {
+    let temp = TempDir::new();
+    assert_success(&temp.run(&["new", "guards"]));
+    let project = temp.0.join("guards");
+    let settings_path = project.join("src/settings.rs");
+    let original = fs::read_to_string(&settings_path).unwrap();
+    for suffix in [
+        "\nmod apps {}\n",
+        "\n#[path = \"custom.rs\"] mod apps;\n",
+        "\n#[cfg(any())] mod apps;\n",
+    ] {
+        fs::write(&settings_path, format!("{original}{suffix}")).unwrap();
+        assert_error(
+            &add_app(&project, &["add", "app", "school"]),
+            "custom apps wiring",
+        );
+        assert!(!project.join("src/apps").exists());
+    }
+    fs::write(&settings_path, &original).unwrap();
+    fs::create_dir_all(project.join("src/apps/school")).unwrap();
+    fs::write(project.join("src/apps/school/keep.txt"), "keep me").unwrap();
+    assert_error(
+        &add_app(&project, &["add", "app", "school"]),
+        "refusing to overwrite",
+    );
+    assert_eq!(
+        fs::read_to_string(project.join("src/apps/school/keep.txt")).unwrap(),
+        "keep me"
+    );
+    fs::write(
+        project.join("src/apps/mod.rs"),
+        "// Already wired\npub mod billing;\n",
+    )
+    .unwrap();
+    assert_error(
+        &add_app(&project, &["add", "app", "billing"]),
+        "already declared",
+    );
+    assert!(!project.join("src/apps/billing").exists());
+    fs::write(project.join("src/apps/finance.rs"), "// Keep me").unwrap();
+    assert_error(
+        &add_app(&project, &["add", "app", "finance"]),
+        "already exists",
+    );
+    assert_eq!(
+        fs::read_to_string(project.join("src/apps/finance.rs")).unwrap(),
+        "// Keep me"
+    );
+    assert!(!project.join("src/apps/finance").exists());
+    fs::write(project.join("src/apps/mod.rs"), "mod [ broken").unwrap();
+    assert_error(
+        &add_app(&project, &["add", "app", "billing"]),
+        "invalid Rust",
+    );
+    assert!(!project.join("src/apps/billing").exists());
+    assert_eq!(fs::read_to_string(settings_path).unwrap(), original);
+}
+
+#[test]
+fn add_app_rolls_back_created_files_if_settings_cannot_be_updated() {
+    let temp = TempDir::new();
+    assert_success(&temp.run(&["new", "rollback"]));
+    let project = temp.0.join("rollback");
+    let settings = project.join("src/settings.rs");
+    let before = fs::read(&settings).unwrap();
+    let permissions = fs::metadata(&settings).unwrap().permissions();
+    let mut readonly = permissions.clone();
+    readonly.set_readonly(true);
+    fs::set_permissions(&settings, readonly).unwrap();
+    let output = add_app(&project, &["add", "app", "school"]);
+    fs::set_permissions(&settings, permissions).unwrap();
+    assert_error(&output, "read-only");
+    assert!(!project.join("src/apps").exists());
+    assert_eq!(fs::read(&settings).unwrap(), before);
+    assert_eq!(
+        entries(&project),
+        ["Cargo.toml", "src/", "src/main.rs", "src/settings.rs"]
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn add_app_refuses_symlink_module_directories() {
+    use std::os::unix::fs::symlink;
+    let temp = TempDir::new();
+    assert_success(&temp.run(&["new", "symlinks"]));
+    let project = temp.0.join("symlinks");
+    let destination = temp.0.join("destination");
+    fs::create_dir(&destination).unwrap();
+    symlink(&destination, project.join("src/apps")).unwrap();
+    assert_error(
+        &add_app(&project, &["add", "app", "school"]),
+        "not a symlink",
+    );
+    assert!(entries(&destination).is_empty());
 }

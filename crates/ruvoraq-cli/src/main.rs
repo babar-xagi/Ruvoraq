@@ -1,16 +1,18 @@
+mod apps;
 mod dev;
 mod project;
 
 use std::{env, ffi::OsString, process::ExitCode};
 
 const HELP: &str = "\
-Ruvoraq — Experiment 003
+Ruvoraq — Experiment 004
 
 Usage: ruvoraq <COMMAND>
        ruvoraq [--help | --version]
 
 Commands:
   new <project-name>  Create a three-file Rust HTTP application
+  add app <name>     Add an optional routes/models/services module
   dev                 Build and run the current Ruvoraq project with Cargo
 
 Options:
@@ -47,6 +49,18 @@ fn run(args: &[OsString]) -> Result<ExitCode, String> {
         ["new", ..] => {
             return Err("expected one project name; usage: ruvoraq new <project-name>".into());
         }
+        ["add", "--help" | "-h"] | ["add", "app", "--help" | "-h"] => println!(
+            "Usage: ruvoraq add app <name>\n\nRun from the project's root. Names use lowercase ASCII letters, digits and\nunderscores, starting with a letter or underscore. Existing apps are refused.\nCreates src/apps/<name>/ with routes.rs, models.rs, services.rs and mod.rs.\nWires modules through settings.rs; main.rs stays unchanged."
+        ),
+        ["add", "app", name] => {
+            let cwd = env::current_dir()
+                .map_err(|error| format!("cannot read current directory: {error}"))?;
+            let target = apps::add(&cwd, name)?;
+            println!("Added app at {}", target.display());
+            println!("Route: GET /{name}");
+            println!("Next: ruvoraq dev");
+        }
+        ["add", ..] => return Err("usage: ruvoraq add app <name>".into()),
         ["dev", "--help" | "-h"] => println!(
             "Usage: ruvoraq dev\n\n\
              Run from the generated project's root directory. Builds and runs the\n\

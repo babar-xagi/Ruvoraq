@@ -4,7 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-fn validate_name(name: &str) -> Result<(), String> {
+pub(super) fn validate_name(name: &str) -> Result<(), String> {
     let mut chars = name.chars();
     if !chars
         .next()
