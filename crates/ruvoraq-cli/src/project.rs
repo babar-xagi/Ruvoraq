@@ -104,20 +104,37 @@ fn io_error(action: &str, path: &Path, error: io::Error) -> String {
 
 pub fn create(parent: &Path, name: &str) -> Result<PathBuf, String> {
     validate_name(name)?;
-    // Until publication, generated applications depend on this source checkout.
-    let framework = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../ruvoraq")
-        .canonicalize()
-        .map_err(|error| format!("cannot locate the local Ruvoraq crate: {error}"))?;
-    if !framework.join("Cargo.toml").is_file() {
-        return Err("local Ruvoraq crate is missing Cargo.toml".into());
+    // Registry dependencies are portable; local development is an explicit override.
+    let mut dependency =
+        std::collections::BTreeMap::from([("version", env!("CARGO_PKG_VERSION").to_owned())]);
+    if let Some(path) = std::env::var_os("RUVORAQ_FRAMEWORK_PATH") {
+        let framework = PathBuf::from(path).canonicalize().map_err(|_| {
+            "RUVORAQ_FRAMEWORK_PATH must point to an existing Ruvoraq crate directory".to_owned()
+        })?;
+        let source = fs::read_to_string(framework.join("Cargo.toml"))
+            .map_err(|_| "RUVORAQ_FRAMEWORK_PATH is missing Cargo.toml".to_owned())?;
+        let manifest: toml::Table = source
+            .parse()
+            .map_err(|_| "RUVORAQ_FRAMEWORK_PATH contains an invalid Cargo.toml".to_owned())?;
+        if manifest
+            .get("package")
+            .and_then(|p| p.get("name"))
+            .and_then(toml::Value::as_str)
+            != Some("ruvoraq")
+        {
+            return Err("RUVORAQ_FRAMEWORK_PATH must identify the ruvoraq crate".into());
+        }
+        dependency.insert(
+            "path",
+            framework
+                .to_str()
+                .ok_or("local Ruvoraq path must be valid UTF-8")?
+                .to_owned(),
+        );
     }
-    let framework = framework
-        .to_str()
-        .ok_or("local Ruvoraq path must be valid UTF-8")?;
     // A TOML serializer handles spaces, Unicode, quotes and Windows backslashes.
-    let dependency = toml::to_string(&std::collections::BTreeMap::from([("path", framework)]))
-        .map_err(|error| format!("cannot encode local Ruvoraq dependency: {error}"))?;
+    let dependency = toml::to_string(&dependency)
+        .map_err(|error| format!("cannot encode Ruvoraq dependency: {error}"))?;
     let target = parent.join(name);
     let created_target = match fs::symlink_metadata(&target) {
         Ok(metadata) => {

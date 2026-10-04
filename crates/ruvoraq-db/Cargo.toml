@@ -4,8 +4,13 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
-description = "Ruvoraq optional SQLite and PostgreSQL adapters"
-publish = false
+description = "Optional SQLite and PostgreSQL adapters with checked transactional migrations for Ruvoraq"
+publish = ["crates-io"]
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords = ["ruvoraq", "backend", "web", "api"]
+categories = ["web-programming::http-server", "development-tools"]
 
 [features]
 default = ["sqlite"]

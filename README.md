@@ -42,7 +42,7 @@ published to crates.io. Production readiness remains a roadmap objective.
 
 The verified development environment is Linux/WSL2 with Rust and Cargo.
 The workspace uses Rust edition 2024 and declares Rust 1.85 as its minimum;
-verification currently uses Rust 1.99.0. A minimum-toolchain build remains pending.
+verification currently uses Rust 1.99.0. The all-feature workspace also passes a Rust 1.85.0 build.
 
 For operating-system prerequisites and Rust installation, follow the
 [installation guide](doc/user_guid.md#installation-and-environment-setup).
@@ -63,8 +63,14 @@ cargo install --path crates/ruvoraq-cli --features postgres --locked --force
 ```
 
 Application database features and CLI database features are enabled separately.
-Generated applications reference this checkout through a local Cargo path;
-keep the checkout available. See [updating your installation](doc/user_guid.md#updating-your-installation).
+Generated applications now use the matching crates.io version by default.
+Until the first upload completes, use the explicit local override below:
+
+```bash
+RUVORAQ_FRAMEWORK_PATH="$HOME/Ruvoraq/crates/ruvoraq" ruvoraq new local_api
+```
+
+Local-override applications reference this checkout; keep it available. See [updating your installation](doc/user_guid.md#updating-your-installation).
 
 ## Your first application
 
@@ -236,7 +242,7 @@ python3 examples/app/tests/full_test.py --postgres
 ```
 
 The runner uses temporary application copies and an owned disposable PostgreSQL
-container. Current evidence includes **75 regular tests per feature configuration,
+container. Current evidence includes **77 regular tests per feature configuration,
 127 live checks and five real PostgreSQL tests**. Verification details and
 remaining limits are recorded in the [testing guide](doc/testing_guid.md).
 
@@ -248,10 +254,11 @@ remaining limits are recorded in the [testing guide](doc/testing_guid.md).
 | [Testing guide](doc/testing_guid.md) | Repeatable checks, curl commands and expected responses. |
 | [Developer guide](doc/developer_guid.md) | Architecture, crate boundaries and contribution workflow. |
 | [Project tracker](project.md) | Completed experiments, limitations and planned work. |
+| [Publishing guide](doc/publishing_guid.md) | Registry authentication, package checks and upload workflow. |
 
 Authentication, middleware/observability, jobs, higher-level database tooling
-and AI capabilities remain future work. Minimum Rust-toolchain and successful
-certificate-verified PostgreSQL TLS tests are also pending.
+and AI capabilities remain future work. Successful certificate-verified PostgreSQL TLS tests remain pending.
+The declared Rust 1.85 minimum now passes the all-feature build check.
 
 ## License
 

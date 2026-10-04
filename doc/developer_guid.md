@@ -394,7 +394,8 @@ as ignored; they were also run explicitly against the temporary server.
 
 The Experiment 009 automated live suites totaled 98 checks. The task demo's 11 checks were a
 separate direct verification run; it has no standalone smoke script.
-These counts describe the recorded validation, not permanent targets.
+These counts describe the recorded validation, not permanent targets. Publication
+preparation adds two generator regression cases, for 77 regular cases per configuration.
 
 The automated live suites build temporary copies and own their server processes
 and database files. They exercise startup errors, concurrent requests, signals,
@@ -434,3 +435,13 @@ Before a public release, establish CI, verify the declared minimum Rust
 toolchain, review public API stability, and replace checkout-specific packaging.
 Committing, pushing, and publishing remain separate actions requested by the
 maintainer; documentation work does not implicitly publish the local changes.
+
+
+## Registry publication
+
+All six packages now have crates.io metadata, README/license files and versioned
+internal dependencies. The generator defaults to a matching registry version;
+RUVORAQ_FRAMEWORK_PATH is the explicit source-development override.
+Two regression cases cover portable registry manifests and invalid local paths.
+The all-feature workspace passes the declared Rust 1.85.0 toolchain. The release
+workflow is documented in [the publishing guide](publishing_guid.md).

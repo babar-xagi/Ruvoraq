@@ -4,8 +4,13 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
-description = "Ruvoraq typed configuration without global environment mutation"
-publish = false
+description = "Typed environment and dotenv configuration for Ruvoraq applications"
+publish = ["crates-io"]
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords = ["ruvoraq", "backend", "web", "api"]
+categories = ["web-programming::http-server", "development-tools"]
 
 [dependencies]
 dotenvy = "0.15.7"

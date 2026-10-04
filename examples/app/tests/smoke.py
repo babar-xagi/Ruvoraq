@@ -12,8 +12,11 @@ import signal
 import subprocess
 import tempfile
 import threading
+import tomllib
 
 APP = Path(__file__).resolve().parents[1]
+framework = tomllib.loads((APP / "Cargo.toml").read_text())["dependencies"]["ruvoraq"]["path"]
+os.environ.setdefault("RUVORAQ_FRAMEWORK_PATH", str((APP / framework).resolve()))
 CLI = shutil.which("ruvoraq")
 CARGO = shutil.which("cargo")
 CHECKS = 0

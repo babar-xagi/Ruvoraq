@@ -28,6 +28,10 @@ impl TempDir {
     fn run(&self, args: &[&str]) -> Output {
         Command::new(env!("CARGO_BIN_EXE_ruvoraq"))
             .current_dir(&self.0)
+            .env(
+                "RUVORAQ_FRAMEWORK_PATH",
+                Path::new(env!("CARGO_MANIFEST_DIR")).join("../ruvoraq"),
+            )
             .args(args)
             .output()
             .expect("run the Ruvoraq CLI")
@@ -1243,4 +1247,48 @@ fn migration_cli_uses_configured_directory_and_process_override() {
     let output = command(Some("schema/sqlite"));
     assert_success(&output);
     assert!(String::from_utf8_lossy(&output.stdout).contains("1  pending"));
+}
+
+#[test]
+fn generated_manifest_defaults_to_registry_without_a_checkout_path() {
+    let temp = TempDir::new();
+    let output = Command::new(env!("CARGO_BIN_EXE_ruvoraq"))
+        .current_dir(&temp.0)
+        .env_remove("RUVORAQ_FRAMEWORK_PATH")
+        .args(["new", "registry-app"])
+        .output()
+        .unwrap();
+    assert_success(&output);
+    let manifest: toml::Table = fs::read_to_string(temp.0.join("registry-app/Cargo.toml"))
+        .unwrap()
+        .parse()
+        .unwrap();
+    let dependency = manifest["dependencies"]["ruvoraq"].as_table().unwrap();
+    assert_eq!(
+        dependency["version"].as_str(),
+        Some(env!("CARGO_PKG_VERSION"))
+    );
+    assert!(!dependency.contains_key("path"));
+    assert_eq!(
+        entries(&temp.0.join("registry-app")),
+        vec!["Cargo.toml", "src/", "src/main.rs", "src/settings.rs"]
+    );
+}
+
+#[test]
+fn invalid_local_framework_override_fails_without_creating_a_project() {
+    let temp = TempDir::new();
+    for path in [
+        temp.0.join("missing"),
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../ruvoraq-config"),
+    ] {
+        let output = Command::new(env!("CARGO_BIN_EXE_ruvoraq"))
+            .current_dir(&temp.0)
+            .env("RUVORAQ_FRAMEWORK_PATH", path)
+            .args(["new", "invalid-source"])
+            .output()
+            .unwrap();
+        assert_error(&output, "RUVORAQ_FRAMEWORK_PATH");
+        assert!(entries(&temp.0).is_empty());
+    }
 }

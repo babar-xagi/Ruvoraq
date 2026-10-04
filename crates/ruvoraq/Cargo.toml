@@ -4,8 +4,13 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
-description = "Ruvoraq public API"
-publish = false
+description = "A modular Rust backend framework with typed APIs and automatic OpenAPI documentation"
+publish = ["crates-io"]
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords = ["ruvoraq", "backend", "web", "api"]
+categories = ["web-programming::http-server", "development-tools"]
 
 [features]
 default = []
@@ -13,10 +18,10 @@ sqlite = ["dep:ruvoraq-db", "ruvoraq-db/sqlite"]
 postgres = ["dep:ruvoraq-db", "ruvoraq-db/postgres"]
 
 [dependencies]
-ruvoraq-db = { path = "../ruvoraq-db", optional = true, default-features = false }
-ruvoraq-config = { path = "../ruvoraq-config" }
-ruvoraq-web = { path = "../ruvoraq-web" }
-ruvoraq-macros = { path = "../ruvoraq-macros" }
+ruvoraq-db = { version = "0.1.0", path = "../ruvoraq-db", optional = true, default-features = false }
+ruvoraq-config = { version = "0.1.0", path = "../ruvoraq-config" }
+ruvoraq-web = { version = "0.1.0", path = "../ruvoraq-web" }
+ruvoraq-macros = { version = "0.1.0", path = "../ruvoraq-macros" }
 tokio.workspace = true
 serde.workspace = true
 serde_json.workspace = true

@@ -4,11 +4,16 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
-description = "Ruvoraq HTTP adapter and typed API"
-publish = false
+description = "HTTP routing, typed requests, shared services and offline Swagger UI for Ruvoraq"
+publish = ["crates-io"]
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords = ["ruvoraq", "backend", "web", "api"]
+categories = ["web-programming::http-server", "development-tools"]
 
 [dependencies]
-ruvoraq-config = { path = "../ruvoraq-config" }
+ruvoraq-config = { version = "0.1.0", path = "../ruvoraq-config" }
 axum.workspace = true
 inventory.workspace = true
 tokio.workspace = true

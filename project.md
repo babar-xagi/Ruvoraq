@@ -290,3 +290,16 @@ Current consolidation verification: **75 regular tests per workspace feature
 configuration, 127 live checks, and five real PostgreSQL server tests passed**.
 Format, build, check and strict Clippy passed for the framework and both example
 backends. The owned PostgreSQL test container and credentials were removed.
+
+
+## Crates.io publication preparation
+
+- [x] Enable six registry packages with repository metadata and packaged README/licenses.
+- [x] Add version constraints to all internal path dependencies.
+- [x] Generate registry projects by default; explicit source override remains available.
+- [x] Add two meaningful generator regression cases (77 regular tests per configuration).
+- [x] Verify the complete all-feature workspace using Rust 1.85.0.
+- [ ] Complete authenticated crates.io upload and verify a fresh registry installation.
+
+Publication target: 0.1.0 for all six crates. Existing Git tag 0.01 remains
+unchanged. See [publishing instructions](doc/publishing_guid.md).

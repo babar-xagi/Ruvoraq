@@ -68,13 +68,13 @@ pointing to a dedicated, initially empty test database; prefer the Docker runner
 | 009 | Migration status/apply/repeat, startup upgrades, history drift, rollback and retry. |
 | 010 | PostgreSQL CRUD, parameters, persistence, migrations, real-server locking/transaction tests. |
 
-Current verified results: **75 regular framework tests per feature configuration,
+Current verified results: **77 regular framework tests per feature configuration,
 127 live checks (70 general, 30 SQLite, 27 PostgreSQL), and five real PostgreSQL
 server tests**. Both example backends pass strict Clippy.
 
 Coverage describes implemented behavior; it is not a production certification.
-Successful certificate-verified PostgreSQL TLS and the declared Rust 1.85
-minimum toolchain still need dedicated verification.
+Successful certificate-verified PostgreSQL TLS still needs dedicated verification.
+The declared Rust 1.85.0 minimum now passes an all-feature workspace build.
 
 ## 🛠️ 3. Create your own fresh minimal project
 
@@ -84,7 +84,7 @@ directories. These commands use `/home/xagi/ruvoraq-playground`:
 ```bash
 mkdir -p /home/xagi/ruvoraq-playground
 cd /home/xagi/ruvoraq-playground
-ruvoraq new my_api
+RUVORAQ_FRAMEWORK_PATH=/home/xagi/Ruvoraq/crates/ruvoraq ruvoraq new my_api
 cd my_api
 find . -type f | sort
 # Exactly: Cargo.toml, src/main.rs, src/settings.rs
@@ -122,7 +122,7 @@ project, generate first and copy the example's deliberate additions:
 
 ```bash
 cd /home/xagi/ruvoraq-playground
-ruvoraq new all_features_api
+RUVORAQ_FRAMEWORK_PATH=/home/xagi/Ruvoraq/crates/ruvoraq ruvoraq new all_features_api
 cd all_features_api
 cp /home/xagi/Ruvoraq/examples/app/Cargo.toml Cargo.toml
 sed -i 's/name = "app"/name = "all_features_api"/g' Cargo.toml

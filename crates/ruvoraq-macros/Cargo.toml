@@ -4,8 +4,13 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
-description = "Ruvoraq route attributes and application bootstrap"
-publish = false
+description = "Route attributes, schema metadata and application bootstrap macros for Ruvoraq"
+publish = ["crates-io"]
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords = ["ruvoraq", "backend", "web", "api"]
+categories = ["web-programming::http-server", "development-tools"]
 
 [lib]
 proc-macro = true

@@ -4,8 +4,9 @@ Ruvoraq is an experimental Rust backend framework built around small application
 route attributes, and optional features. This guide describes the implementation
 through Experiment 010. Examples build on the generated scaffold; when combining
 configuration, services and databases, extend one configure hook and retain one
-bootstrap invocation. The framework crates are currently used through local
-path dependencies; they have not been published to crates.io.
+bootstrap invocation. Crates.io publication is being prepared; until upload completes, use an explicit
+local framework override when generating a project. See the
+[publishing guide](publishing_guid.md) for the current release workflow.
 
 ## Contents
 
@@ -43,8 +44,7 @@ and macOS have not received equivalent end-to-end verification. The live scripts
 use Unix process signals and should be run in Linux/WSL2.
 
 The workspace uses Rust edition 2024 and declares Rust 1.85 as its minimum.
-Current checks used Rust/Cargo 1.99.0. Actual minimum-toolchain verification is
-still pending; use a current stable toolchain for this walkthrough.
+Current checks used Rust/Cargo 1.99.0. The complete all-feature workspace has also passed Rust 1.85.0; use a current stable toolchain for this walkthrough.
 
 ### Windows: prepare WSL2
 
@@ -155,8 +155,9 @@ local framework changes, resolve them before updating the checkout.
 
 Building the workspace does not replace the installed CLI. `--force` replaces
 an existing installation; it does not overwrite generated application projects.
-Generated projects use a local dependency on this checkout, so source updates
-also affect them when they next build. Version `0.1.0` alone does not identify
+Projects generated with RUVORAQ_FRAMEWORK_PATH use this checkout, so source
+updates affect those projects when they next build. Registry projects resolve
+their declared versions instead. Version `0.1.0` alone does not identify
 the exact installed experiment; reinstall from the intended Git revision.
 
 ## Start an application
@@ -166,7 +167,7 @@ With the CLI installed, create an application in a directory you own:
 ```bash
 mkdir -p "$HOME/projects"
 cd "$HOME/projects"
-ruvoraq new hello_api
+RUVORAQ_FRAMEWORK_PATH="$HOME/Ruvoraq/crates/ruvoraq" ruvoraq new hello_api
 cd hello_api
 cargo check
 ruvoraq dev
@@ -216,8 +217,10 @@ second main function or bootstrap invocation.
 The manifest marks the project with `[package.metadata.ruvoraq]` and
 `project = true`. It also contains an independent `[workspace]` declaration,
 so generated applications can live inside the framework checkout. Its Ruvoraq
-dependency points to the local checkout; moving or sharing the project requires
-updating that path.
+dependency normally uses the CLI version from crates.io. The walkthrough uses
+RUVORAQ_FRAMEWORK_PATH while first publication is pending; that explicit override
+adds the local checkout path. Moving an app with a path dependency requires
+updating it. After publication, omit the override for portable registry projects.
 
 ### Available commands
 
@@ -667,9 +670,11 @@ name if that directory already exists:
 ```bash
 mkdir -p "$HOME/projects"
 cd "$HOME/projects"
-ruvoraq new notes_api
+RUVORAQ_FRAMEWORK_PATH="$HOME/Ruvoraq/crates/ruvoraq" ruvoraq new notes_api
 cd notes_api
 ```
+
+For a published installation, omit RUVORAQ_FRAMEWORK_PATH to use crates.io.
 
 Add `features = ["sqlite"]` under the existing `[dependencies.ruvoraq]` section
 in `Cargo.toml`; preserve its generated local path. Then create the first SQL
@@ -1165,7 +1170,7 @@ manual HTTP responses.
 | API metadata | Known extractors/models are supported; custom extractors and dynamic statuses need additional metadata. |
 | Platform verification | Linux/WSL2 verified; equivalent native Windows/macOS live runs are pending. |
 | Deployment | Authentication, jobs and broader operations tooling remain planned. |
-| Compatibility | Rust 1.85 is declared; an actual minimum-toolchain build is pending. |
+| Compatibility | The all-feature workspace passes Rust 1.85.0; continue checking the minimum toolchain for future releases. |
 | PostgreSQL TLS | Rustls support is enabled; successful certificate-verified TLS tests remain pending. |
 
 The [project tracker](../project.md) records delivered behavior and future work.

@@ -38,7 +38,9 @@ fn run(args: &[OsString]) -> Result<ExitCode, String> {
              Names must start with an ASCII letter or underscore, contain only\n\
              ASCII letters, digits, hyphens or underscores, and be at most 64 bytes.\n\
              Rust keywords, Cargo build directory names and Windows device names\n\
-             are reserved. Paths are not accepted. Existing directories must be empty."
+             are reserved. Paths are not accepted. Existing directories must be empty.\n\n\
+             Uses the crates.io Ruvoraq version matching this CLI. Set\n\
+             RUVORAQ_FRAMEWORK_PATH to a local ruvoraq crate for source development."
         ),
         ["new", name] => {
             let cwd = env::current_dir()
