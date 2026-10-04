@@ -1,6 +1,7 @@
 # Publishing Ruvoraq to crates.io
 
-The publication target is **0.1.0** for all six packages. The existing Git tag
+All six packages are **published as 0.1.0** and their public installation has
+been verified. The existing Git tag
 `0.01` is a repository label; Cargo package versions use semantic versioning.
 Publishing preparation adds versioned internal dependencies, per-crate metadata,
 README/license files and portable registry-based project generation.
@@ -119,3 +120,11 @@ RUVORAQ_FRAMEWORK_PATH="$HOME/Ruvoraq/crates/ruvoraq" \
 The generated manifest contains both the version and local path. The override
 is validated before any project is created. It must identify the `ruvoraq`
 crate, not the workspace root or another crate. Existing apps are unchanged.
+
+## First-publication result
+
+All six 0.1.0 packages were verified through the crates.io API and a clean
+registry CLI installation. The sixth new-crate upload encountered a temporary
+crates.io rate limit; only the remaining framework package was retried after
+the server-provided time. Source overrides were unset for the public scaffold
+and feature/HTTP checks.

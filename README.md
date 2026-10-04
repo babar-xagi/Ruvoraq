@@ -16,13 +16,13 @@ async fn hello() -> &'static str {
 }
 ```
 
-[Get started](#installation) · [User guide](doc/user_guid.md) ·
+[crates.io](https://crates.io/crates/ruvoraq) · [Get started](#installation) · [User guide](doc/user_guid.md) ·
 [API example](#a-typed-api-in-a-few-lines) · [Testing](doc/testing_guid.md) ·
 [Developer guide](doc/developer_guid.md) · [Roadmap](project.md)
 
 **Project status:** experimental, version `0.1.0`. Development has reached
-Experiment 010. Packages are installed from this repository and have not been
-published to crates.io. Production readiness remains a roadmap objective.
+Experiment 010. All six packages are published on crates.io as `0.1.0`.
+Install the CLI from the registry or use the checkout for framework development. Production readiness remains a roadmap objective.
 
 ## Why Ruvoraq
 
@@ -46,31 +46,35 @@ verification currently uses Rust 1.99.0. The all-feature workspace also passes a
 
 For operating-system prerequisites and Rust installation, follow the
 [installation guide](doc/user_guid.md#installation-and-environment-setup).
-With Git and Rust available:
+With Rust and Cargo available:
 
 ```bash
-cd "$HOME"
-git clone https://github.com/babar-xagi/Ruvoraq.git
-cd Ruvoraq
-cargo install --path crates/ruvoraq-cli --locked
+cargo install ruvoraq-cli --version 0.1.0 --locked
 ruvoraq --version
 ```
 
 For PostgreSQL migration commands, install the optional CLI feature:
 
 ```bash
-cargo install --path crates/ruvoraq-cli --features postgres --locked --force
+cargo install ruvoraq-cli --version 0.1.0 --features postgres --locked --force
 ```
 
-Application database features and CLI database features are enabled separately.
-Generated applications now use the matching crates.io version by default.
-Until the first upload completes, use the explicit local override below:
+Generated applications use `ruvoraq = "0.1.0"` from crates.io, so a framework
+checkout is unnecessary. Application database features and CLI database features
+are enabled separately. See [updating your installation](doc/user_guid.md#updating-your-installation).
+
+For source development and the repository example:
 
 ```bash
+cd "$HOME"
+git clone https://github.com/babar-xagi/Ruvoraq.git
+cd Ruvoraq
+cargo install --path crates/ruvoraq-cli --locked --force
 RUVORAQ_FRAMEWORK_PATH="$HOME/Ruvoraq/crates/ruvoraq" ruvoraq new local_api
 ```
 
-Local-override applications reference this checkout; keep it available. See [updating your installation](doc/user_guid.md#updating-your-installation).
+The explicit override adds a local dependency path for unpublished framework
+changes. Keep that checkout available for projects generated with the override.
 
 ## Your first application
 
@@ -206,6 +210,8 @@ existing files and symlink targets. Database migrations require `DATABASE_URL`;
 `MIGRATIONS_DIR` defaults to `migrations` in the CLI.
 
 ## Explore the complete example
+
+From a source checkout created with the development commands above:
 
 The [comprehensive application](examples/app/README.md) combines school/billing
 services with validated notes CRUD, configuration, documentation and migrations.

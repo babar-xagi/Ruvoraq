@@ -84,7 +84,7 @@ directories. These commands use `/home/xagi/ruvoraq-playground`:
 ```bash
 mkdir -p /home/xagi/ruvoraq-playground
 cd /home/xagi/ruvoraq-playground
-RUVORAQ_FRAMEWORK_PATH=/home/xagi/Ruvoraq/crates/ruvoraq ruvoraq new my_api
+ruvoraq new my_api
 cd my_api
 find . -type f | sort
 # Exactly: Cargo.toml, src/main.rs, src/settings.rs
@@ -122,7 +122,7 @@ project, generate first and copy the example's deliberate additions:
 
 ```bash
 cd /home/xagi/ruvoraq-playground
-RUVORAQ_FRAMEWORK_PATH=/home/xagi/Ruvoraq/crates/ruvoraq ruvoraq new all_features_api
+ruvoraq new all_features_api
 cd all_features_api
 cp /home/xagi/Ruvoraq/examples/app/Cargo.toml Cargo.toml
 sed -i 's/name = "app"/name = "all_features_api"/g' Cargo.toml

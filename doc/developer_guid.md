@@ -218,8 +218,6 @@ Coverage includes five migration integration tests, two CLI behavior tests,
 and live startup/upgrade/recovery checks in the notes example. Reversible
 migrations and migration-file generation remain deferred.
 
-
-
 ## 🐘 PostgreSQL adapter
 
 The facade's postgres feature exports PostgresDatabase and the shared
@@ -413,8 +411,9 @@ files without losing existing rows.
 
 The workspace declares Rust 1.85. Experiment 008 was tested using the installed
 Rust 1.99.0 toolchain and dependency MSRV metadata was checked; an actual
-Rust 1.85 build has not yet been verified. A minimum-toolchain CI job remains
-necessary before claiming that compatibility has been demonstrated.
+Rust 1.85.0 all-feature workspace build is now verified during publication
+preparation. A minimum-toolchain CI job remains useful to keep that compatibility
+checked for later changes.
 
 ## 🌱 Adding the next feature
 
@@ -436,7 +435,6 @@ toolchain, review public API stability, and replace checkout-specific packaging.
 Committing, pushing, and publishing remain separate actions requested by the
 maintainer; documentation work does not implicitly publish the local changes.
 
-
 ## Registry publication
 
 All six packages now have crates.io metadata, README/license files and versioned
@@ -445,3 +443,8 @@ RUVORAQ_FRAMEWORK_PATH is the explicit source-development override.
 Two regression cases cover portable registry manifests and invalid local paths.
 The all-feature workspace passes the declared Rust 1.85.0 toolchain. The release
 workflow is documented in [the publishing guide](publishing_guid.md).
+
+The 0.1.0 release is now published for all six crates. A fresh publicly installed
+CLI generates version-only projects and the public framework builds with default,
+SQLite and PostgreSQL features. HTTP greeting/docs/module checks and graceful
+shutdown were also verified through the actual registry packages.

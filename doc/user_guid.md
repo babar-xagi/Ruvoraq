@@ -4,9 +4,9 @@ Ruvoraq is an experimental Rust backend framework built around small application
 route attributes, and optional features. This guide describes the implementation
 through Experiment 010. Examples build on the generated scaffold; when combining
 configuration, services and databases, extend one configure hook and retain one
-bootstrap invocation. Crates.io publication is being prepared; until upload completes, use an explicit
-local framework override when generating a project. See the
-[publishing guide](publishing_guid.md) for the current release workflow.
+bootstrap invocation. All six packages are available on crates.io as version 0.1.0. A framework
+checkout is optional for application development. See the
+[publishing guide](publishing_guid.md) for the verified release workflow.
 
 ## Contents
 
@@ -110,7 +110,26 @@ If a command is unavailable after installation, reopen the terminal or source
 `$HOME/.cargo/env`. Rust and installed Cargo binaries normally live in
 `$HOME/.cargo/bin`.
 
-### Clone Ruvoraq and install the CLI
+### Install the CLI from crates.io
+
+```bash
+cargo install ruvoraq-cli --version 0.1.0 --locked
+ruvoraq --help
+ruvoraq --version
+```
+
+No Git checkout is needed to generate and run an application. For PostgreSQL
+migration commands, use:
+
+```bash
+cargo install ruvoraq-cli --version 0.1.0 --features postgres --locked --force
+```
+
+This enables PostgreSQL in the migration CLI; application dependencies still
+need their own database feature. Packages: [framework](https://crates.io/crates/ruvoraq)
+and [CLI](https://crates.io/crates/ruvoraq-cli).
+
+### Source development installation
 
 Keep the framework checkout in your Linux home directory:
 
@@ -125,8 +144,9 @@ ruvoraq --version
 
 If you already cloned the repository, enter that checkout instead of cloning
 over it. The current version output is `ruvoraq 0.1.0`.
-The crates are not published to crates.io; installation from this checkout is
-the supported workflow at this stage.
+The source installation is for contributors and local framework changes.
+By default this CLI also generates registry dependencies. To use your checkout,
+set RUVORAQ_FRAMEWORK_PATH to its crates/ruvoraq directory while generating.
 
 For PostgreSQL CLI migration support:
 
@@ -138,6 +158,20 @@ The CLI feature enables PostgreSQL **migration commands**. Application database
 dependencies still need their own `sqlite` or `postgres` feature.
 
 ### Updating your installation
+
+For the current published release, reinstall the registry CLI with `--force`:
+
+```bash
+cargo install ruvoraq-cli --version 0.1.0 --locked --force
+# Or retain PostgreSQL support:
+cargo install ruvoraq-cli --version 0.1.0 --features postgres --locked --force
+```
+
+Choose one command. Future releases require choosing their published version.
+Existing applications retain the dependency version recorded in Cargo.toml and
+Cargo.lock; reinstalling the CLI does not rewrite their manifests.
+
+For a source installation, follow this separate workflow:
 
 From your framework checkout, update with a fast-forward pull and reinstall
 the CLI you use:
@@ -167,7 +201,7 @@ With the CLI installed, create an application in a directory you own:
 ```bash
 mkdir -p "$HOME/projects"
 cd "$HOME/projects"
-RUVORAQ_FRAMEWORK_PATH="$HOME/Ruvoraq/crates/ruvoraq" ruvoraq new hello_api
+ruvoraq new hello_api
 cd hello_api
 cargo check
 ruvoraq dev
@@ -217,10 +251,9 @@ second main function or bootstrap invocation.
 The manifest marks the project with `[package.metadata.ruvoraq]` and
 `project = true`. It also contains an independent `[workspace]` declaration,
 so generated applications can live inside the framework checkout. Its Ruvoraq
-dependency normally uses the CLI version from crates.io. The walkthrough uses
-RUVORAQ_FRAMEWORK_PATH while first publication is pending; that explicit override
-adds the local checkout path. Moving an app with a path dependency requires
-updating it. After publication, omit the override for portable registry projects.
+dependency uses the CLI version from crates.io. Source developers can set
+RUVORAQ_FRAMEWORK_PATH to add an explicit local dependency path. Moving an app
+with a path dependency requires updating it; normal registry projects are portable.
 
 ### Available commands
 
@@ -615,11 +648,11 @@ App::docs(false) when you need those paths.
 ## SQLite persistence
 
 SQLite support is optional. Add the feature to your application's existing
-Ruvoraq dependency; keep its generated path:
+Ruvoraq dependency; preserve its existing version or source-development path:
 
 ```toml
 [dependencies.ruvoraq]
-path = "/home/xagi/Ruvoraq/crates/ruvoraq"
+version = "0.1.0"
 features = ["sqlite"]
 ```
 
@@ -670,14 +703,13 @@ name if that directory already exists:
 ```bash
 mkdir -p "$HOME/projects"
 cd "$HOME/projects"
-RUVORAQ_FRAMEWORK_PATH="$HOME/Ruvoraq/crates/ruvoraq" ruvoraq new notes_api
+ruvoraq new notes_api
 cd notes_api
 ```
 
-For a published installation, omit RUVORAQ_FRAMEWORK_PATH to use crates.io.
-
 Add `features = ["sqlite"]` under the existing `[dependencies.ruvoraq]` section
-in `Cargo.toml`; preserve its generated local path. Then create the first SQL
+in `Cargo.toml`; preserve its generated version. For source development, keep
+the local path as well. Then create the first SQL
 migration and an optional environment file:
 
 ```bash
@@ -894,11 +926,11 @@ an automatic baseline for arbitrary legacy databases.
 ## Optional PostgreSQL
 
 Experiment 010 adds an explicit PostgreSQL adapter. Enable it in your
-application's existing local Ruvoraq dependency:
+application's existing Ruvoraq dependency:
 
 ```toml
 [dependencies.ruvoraq]
-path = "/home/xagi/Ruvoraq/crates/ruvoraq"
+version = "0.1.0"
 features = ["postgres"]
 ```
 
@@ -1162,7 +1194,7 @@ manual HTTP responses.
 
 | Area | Current boundary |
 | --- | --- |
-| Distribution | Local Cargo paths; packages are not published to crates.io. |
+| Distribution | Version 0.1.0 is published on crates.io; source paths are optional development overrides. |
 | Development server | Build/run only; no automatic file watching. |
 | Validation | Explicit Validate implementation; no validation derive. |
 | Dependency injection | Explicit per-App providers; no automatic construction or request-scoped graph. |

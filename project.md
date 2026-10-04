@@ -15,7 +15,7 @@ proposals, not delivered features or promised release dates.
 - One runnable example: school/billing APIs with SQLite or PostgreSQL notes.
 - Verification: 75 regular tests per configuration, five real PostgreSQL tests,
   and 127 automated live checks, plus direct fresh-example migration/restart checks.
-- Framework crates: not published to crates.io.
+- Framework crates: all six packages published to crates.io as 0.1.0.
 - Next proposed phase: request middleware and observability, with scope selected by the maintainer.
 - Delivery identifiers and branch publication are recorded in Git history.
 
@@ -261,8 +261,8 @@ Experiment 009 was delivered in commit 8fc3f7a. Experiment 010 and the
 consolidated example are included in the following delivery. Consult Git
 history for commit identifiers and remote branch state.
 
-Before a first public release, verify the minimum Rust toolchain, establish CI,
-review the public API, and resolve packaging and package ownership. Keep those
+For later releases, keep minimum-toolchain checks, establish CI, review the
+public API, and maintain packaging and package ownership. Keep those
 release tasks separate from completing an individual experiment.
 
 Update this file whenever scope, verification evidence, or repository status
@@ -291,15 +291,25 @@ configuration, 127 live checks, and five real PostgreSQL server tests passed**.
 Format, build, check and strict Clippy passed for the framework and both example
 backends. The owned PostgreSQL test container and credentials were removed.
 
-
-## Crates.io publication preparation
+## Crates.io publication (0.1.0)
 
 - [x] Enable six registry packages with repository metadata and packaged README/licenses.
 - [x] Add version constraints to all internal path dependencies.
 - [x] Generate registry projects by default; explicit source override remains available.
 - [x] Add two meaningful generator regression cases (77 regular tests per configuration).
 - [x] Verify the complete all-feature workspace using Rust 1.85.0.
-- [ ] Complete authenticated crates.io upload and verify a fresh registry installation.
+- [x] Complete authenticated crates.io upload and verify a fresh registry installation.
 
-Publication target: 0.1.0 for all six crates. Existing Git tag 0.01 remains
+Published version: 0.1.0 for all six crates. Existing Git tag 0.01 remains
 unchanged. See [publishing instructions](doc/publishing_guid.md).
+
+### Public registry verification
+
+The installed registry CLI generates portable version-only applications without
+the checkout. Default, SQLite and PostgreSQL feature builds, real HTTP greeting,
+OpenAPI/Swagger, module generation and signal shutdown pass with public packages.
+The initial new-crate rate limit was handled by waiting for the specified retry
+time and uploading only the remaining core crate. All six registry versions are
+0.1.0; the original Git tag 0.01 remains unchanged.
+
+The published package source is tagged v0.1.0 at commit d00392c.
