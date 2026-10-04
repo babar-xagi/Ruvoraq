@@ -18,7 +18,11 @@ use std::{future::Future, io};
 
 pub use ruvoraq_config::Env;
 #[cfg(feature = "sqlite")]
-pub use ruvoraq_db::{Database, MigrationStatus, Migrations, sqlx};
+pub use ruvoraq_db::Database;
+#[cfg(feature = "postgres")]
+pub use ruvoraq_db::PostgresDatabase;
+#[cfg(any(feature = "sqlite", feature = "postgres"))]
+pub use ruvoraq_db::{MigrationStatus, Migrations, sqlx};
 
 pub use ruvoraq_macros::{bootstrap, delete, get, patch, post, put, schema};
 pub use ruvoraq_web::schemars;
@@ -46,14 +50,18 @@ where
 
 /// Common application imports.
 pub mod prelude {
+    #[cfg(feature = "sqlite")]
+    pub use crate::Database;
+    #[cfg(feature = "postgres")]
+    pub use crate::PostgresDatabase;
     pub use crate::{
         App, Deserialize, Env, Error, HeaderMap, Inject, IntoResponse, Json, Path, Query, Reply,
         Response, Result, Serialize, Settings, StatusCode, Validate, ValidatedJson, Value,
         accepted, bad_request, created, delete, get, invalid, json, no_content, not_found, ok,
         patch, post, put, run, schema,
     };
-    #[cfg(feature = "sqlite")]
-    pub use crate::{Database, MigrationStatus, Migrations, sqlx};
+    #[cfg(any(feature = "sqlite", feature = "postgres"))]
+    pub use crate::{MigrationStatus, Migrations, sqlx};
 }
 
 /// Implementation details used by generated code, not a stable application API.

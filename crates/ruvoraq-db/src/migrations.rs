@@ -1,6 +1,12 @@
-//! Forward-only SQLite migrations with validation before applying pending files.
-use crate::{Database, sqlx};
-use sqlx::migrate::{MigrateError, Migrator};
+//! Forward-only database migrations with validation before applying pending files.
+#[cfg(feature = "sqlite")]
+use crate::Database;
+#[cfg(feature = "postgres")]
+use crate::PostgresDatabase;
+use crate::sqlx;
+#[cfg(any(feature = "sqlite", feature = "postgres"))]
+use sqlx::migrate::MigrateError;
+use sqlx::migrate::Migrator;
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs, io,
@@ -95,6 +101,7 @@ impl Migrations {
     }
 
     /// Validate recorded history and report applied/pending files without applying SQL.
+    #[cfg(feature = "sqlite")]
     pub async fn status(&self, database: &Database) -> io::Result<Vec<MigrationStatus>> {
         let exists: (i64,) = sqlx::query_as(
             "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = '_sqlx_migrations'",
@@ -119,6 +126,13 @@ impl Migrations {
                 applied.insert(version, checksum);
             }
         }
+        self.validated_status(applied)
+    }
+
+    fn validated_status(
+        &self,
+        applied: BTreeMap<i64, Vec<u8>>,
+    ) -> io::Result<Vec<MigrationStatus>> {
         // Validate all history before applying anything, including lower-numbered additions.
         for (version, checksum) in &applied {
             let source = self
@@ -159,6 +173,7 @@ impl Migrations {
     /// SQLx stores checksums and versions in _sqlx_migrations. Earlier successful
     /// files remain committed if a later file fails. Scripts must not contain
     /// transaction-control statements; the runner owns transaction boundaries.
+    #[cfg(feature = "sqlite")]
     pub async fn run(&self, database: &Database) -> io::Result<usize> {
         let pending = self
             .status(database)
@@ -178,6 +193,7 @@ impl Migrations {
     }
 }
 
+#[cfg(feature = "sqlite")]
 impl Database {
     /// Load and apply a directory of forward-only migrations.
     pub async fn migrate(&self, directory: impl AsRef<Path>) -> io::Result<usize> {
@@ -190,5 +206,87 @@ impl Database {
         directory: impl AsRef<Path>,
     ) -> io::Result<Vec<MigrationStatus>> {
         Migrations::load(directory).await?.status(self).await
+    }
+}
+
+#[cfg(feature = "postgres")]
+impl Migrations {
+    async fn postgres_status_connection(
+        &self,
+        connection: &mut sqlx::PgConnection,
+    ) -> io::Result<Vec<MigrationStatus>> {
+        let (exists,): (bool,) =
+            sqlx::query_as("SELECT to_regclass('_sqlx_migrations') IS NOT NULL")
+                .fetch_one(&mut *connection)
+                .await
+                .map_err(|_| invalid("cannot inspect PostgreSQL migration history"))?;
+        let mut applied = BTreeMap::new();
+        if exists {
+            let rows: Vec<(i64, bool, Vec<u8>)> = sqlx::query_as(
+                "SELECT version, success, checksum FROM _sqlx_migrations ORDER BY version",
+            )
+            .fetch_all(&mut *connection)
+            .await
+            .map_err(|_| invalid("cannot read PostgreSQL migration history"))?;
+            for (version, success, checksum) in rows {
+                if !success {
+                    return Err(invalid(format!(
+                        "migration {version} is incomplete; inspect database history before continuing"
+                    )));
+                }
+                applied.insert(version, checksum);
+            }
+        }
+        self.validated_status(applied)
+    }
+
+    /// Read history in the connection's current PostgreSQL search path.
+    pub async fn status_postgres(
+        &self,
+        database: &PostgresDatabase,
+    ) -> io::Result<Vec<MigrationStatus>> {
+        let mut connection = database
+            .pool()
+            .acquire()
+            .await
+            .map_err(|_| invalid("cannot acquire PostgreSQL migration connection"))?;
+        self.postgres_status_connection(&mut connection).await
+    }
+
+    /// Serialize migrations with SQLx's PostgreSQL advisory lock.
+    /// Validation and per-file application share the same locked connection.
+    /// The connection is closed on success or error, releasing session locks.
+    pub async fn run_postgres(&self, database: &PostgresDatabase) -> io::Result<usize> {
+        use sqlx::migrate::Migrate;
+        let mut connection = database
+            .pool()
+            .acquire()
+            .await
+            .map_err(|_| invalid("cannot acquire PostgreSQL migration connection"))?;
+        let result: io::Result<usize> = async {
+            connection.lock().await
+                .map_err(|_| invalid("cannot lock PostgreSQL migrations; check database access or retry after the other migrator finishes"))?;
+            let statuses = self.postgres_status_connection(&mut connection).await?;
+            connection.ensure_migrations_table().await
+                .map_err(|_| invalid("cannot initialize PostgreSQL migration history"))?;
+            let mut applied = 0;
+            for (migration, status) in self.migrator.iter().zip(statuses) {
+                if status.applied { continue; }
+                connection.apply(migration).await.map_err(|error| match error {
+                    MigrateError::ExecuteMigration(_, version) => invalid(format!(
+                        "migration {version} failed; its transaction was rolled back; fix the pending SQL and retry")),
+                    _ => invalid(format!(
+                        "cannot complete migration {}; inspect database history before retrying",
+                        migration.version)),
+                })?;
+                applied += 1;
+            }
+            Ok(applied)
+        }.await;
+        let close = connection
+            .close()
+            .await
+            .map_err(|_| invalid("cannot close PostgreSQL migration connection"));
+        result.and_then(|count| close.map(|_| count))
     }
 }

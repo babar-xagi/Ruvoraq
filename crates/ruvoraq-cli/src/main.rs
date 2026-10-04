@@ -6,13 +6,13 @@ mod project;
 use std::{env, ffi::OsString, process::ExitCode};
 
 const HELP: &str = "\
-Ruvoraq — Experiment 009
+Ruvoraq — Experiment 010
 
 Usage: ruvoraq <COMMAND>
        ruvoraq [--help | --version]
 
 Commands:
-  migrate [--status]  Apply or inspect SQLite migrations
+  migrate [--status]  Apply or inspect database migrations
   new <project-name>  Create a three-file Rust HTTP application
   add app <name>     Add an optional routes/models/services module
   dev                 Build and run the current Ruvoraq project with Cargo
@@ -64,7 +64,7 @@ fn run(args: &[OsString]) -> Result<ExitCode, String> {
         }
         ["add", ..] => return Err("usage: ruvoraq add app <name>".into()),
         ["migrate", "--help" | "-h"] => println!(
-            "Usage: ruvoraq migrate [--status]\n\nRun from a marked project root. Reads DATABASE_URL from environment/.env\nand forward-only migrations/<version>_<description>.sql files.\n--status validates history and lists applied/pending versions without applying SQL."
+            "Usage: ruvoraq migrate [--status]\n\nRun from a marked project root. Reads DATABASE_URL from environment/.env\nand forward-only migrations/<version>_<description>.sql files. PostgreSQL\nrequires installing this CLI with --features postgres.\n--status validates history and lists applied/pending versions without applying SQL."
         ),
         ["migrate"] | ["migrate", "--status"] => {
             let cwd = env::current_dir().map_err(|_| "cannot read current directory")?;

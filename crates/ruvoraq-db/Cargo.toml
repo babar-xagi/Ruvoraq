@@ -4,11 +4,16 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
-description = "Ruvoraq optional SQLite connection pool"
+description = "Ruvoraq optional SQLite and PostgreSQL adapters"
 publish = false
 
+[features]
+default = ["sqlite"]
+sqlite = ["sqlx/sqlite"]
+postgres = ["sqlx/postgres", "sqlx/tls-rustls-ring"]
+
 [dependencies]
-sqlx = { version = "=0.8.6", default-features = false, features = ["runtime-tokio", "sqlite", "migrate"] }
+sqlx = { version = "=0.8.6", default-features = false, features = ["runtime-tokio", "migrate"] }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros"] }

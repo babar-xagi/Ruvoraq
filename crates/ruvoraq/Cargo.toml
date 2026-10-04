@@ -9,10 +9,11 @@ publish = false
 
 [features]
 default = []
-sqlite = ["dep:ruvoraq-db"]
+sqlite = ["dep:ruvoraq-db", "ruvoraq-db/sqlite"]
+postgres = ["dep:ruvoraq-db", "ruvoraq-db/postgres"]
 
 [dependencies]
-ruvoraq-db = { path = "../ruvoraq-db", optional = true }
+ruvoraq-db = { path = "../ruvoraq-db", optional = true, default-features = false }
 ruvoraq-config = { path = "../ruvoraq-config" }
 ruvoraq-web = { path = "../ruvoraq-web" }
 ruvoraq-macros = { path = "../ruvoraq-macros" }

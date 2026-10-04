@@ -1155,7 +1155,7 @@ fn migration_cli_applies_lists_and_validates_history() {
     assert_error(&command(&["migrate"]), "has changed");
     fs::write(
         project.join(".env"),
-        "DATABASE_URL=postgres://private-secret\n",
+        "DATABASE_URL=mysql://private-secret\n",
     )
     .unwrap();
     let error = command(&["migrate"]);
@@ -1187,4 +1187,60 @@ fn migration_cli_checks_project_environment_and_sources_before_opening_database(
     fs::write(project.join("migrations/malformed.sql"), "SELECT 1;").unwrap();
     assert_error(&command(), "filenames");
     assert!(!project.join("never.sqlite").exists());
+}
+
+#[cfg(not(feature = "postgres"))]
+#[test]
+fn postgres_migrations_explain_the_optional_cli_feature_without_exposing_urls() {
+    let temp = TempDir::new();
+    assert_success(&temp.run(&["new", "postgres-demo"]));
+    let project = temp.0.join("postgres-demo");
+    fs::create_dir(project.join("migrations")).unwrap();
+    fs::write(
+        project.join("migrations/1_notes.sql"),
+        "CREATE TABLE notes (title TEXT);",
+    )
+    .unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_ruvoraq"))
+        .current_dir(project)
+        .env("DATABASE_URL", "postgres://private-secret")
+        .arg("migrate")
+        .output()
+        .unwrap();
+    assert_error(&output, "--features postgres");
+    assert!(!String::from_utf8_lossy(&output.stderr).contains("private-secret"));
+}
+
+#[test]
+fn migration_cli_uses_configured_directory_and_process_override() {
+    let temp = TempDir::new();
+    assert_success(&temp.run(&["new", "migration-path"]));
+    let project = temp.0.join("migration-path");
+    fs::create_dir_all(project.join("schema/sqlite")).unwrap();
+    fs::write(
+        project.join("schema/sqlite/1_values.sql"),
+        "CREATE TABLE values_table (id INTEGER);",
+    )
+    .unwrap();
+    fs::write(
+        project.join(".env"),
+        "DATABASE_URL=sqlite://values.sqlite\nMIGRATIONS_DIR=missing\n",
+    )
+    .unwrap();
+    let command = |override_path: Option<&str>| {
+        let mut command = Command::new(env!("CARGO_BIN_EXE_ruvoraq"));
+        command
+            .current_dir(&project)
+            .env_remove("DATABASE_URL")
+            .env_remove("MIGRATIONS_DIR");
+        if let Some(path) = override_path {
+            command.env("MIGRATIONS_DIR", path);
+        }
+        command.args(["migrate", "--status"]).output().unwrap()
+    };
+    assert_error(&command(None), "migrations directory");
+    assert!(!project.join("values.sqlite").exists());
+    let output = command(Some("schema/sqlite"));
+    assert_success(&output);
+    assert!(String::from_utf8_lossy(&output.stdout).contains("1  pending"));
 }

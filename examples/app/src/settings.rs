@@ -5,6 +5,7 @@ use ruvoraq::{App, Settings};
 use apps::{billing::services::BillingService, school::services::SchoolService};
 
 mod apps;
+mod notes;
 
 pub const APP_NAME: &str = "app";
 pub const HOST: Ipv4Addr = Ipv4Addr::LOCALHOST;
@@ -17,13 +18,36 @@ pub fn settings() -> Settings {
     }
 }
 
-fn configure(app: App) -> std::io::Result<App> {
+async fn configure(app: App) -> std::io::Result<App> {
     let greeting = app
         .env()
         .get_or("SCHOOL_GREETING", "School API".to_owned())?;
+    #[cfg(not(feature = "postgres"))]
+    let database = {
+        let url = app
+            .env()
+            .get_or("DATABASE_URL", "sqlite://notes.sqlite".to_owned())?;
+        let db = ruvoraq::Database::connect(&url).await?;
+        let directory = app
+            .env()
+            .get_or("MIGRATIONS_DIR", "migrations/sqlite".to_owned())?;
+        db.migrate(directory).await?;
+        db
+    };
+    #[cfg(feature = "postgres")]
+    let database = {
+        let url: String = app.env().get("DATABASE_URL")?;
+        let db = ruvoraq::PostgresDatabase::connect(&url).await?;
+        let directory = app
+            .env()
+            .get_or("MIGRATIONS_DIR", "migrations/postgres".to_owned())?;
+        db.migrate(directory).await?;
+        db
+    };
     Ok(app
+        .provide(database)
         .provide(SchoolService::with_greeting(greeting))
         .provide_shared(Arc::new(BillingService::default())))
 }
 
-ruvoraq::bootstrap!(configure);
+ruvoraq::bootstrap!(async configure);

@@ -2,7 +2,7 @@
 
 This guide is for contributors to the framework. Application authors should
 start with the [user guide](user_guid.md). The current architecture covers
-Experiments 001–009; implementation details may change before a public release.
+Experiments 001–010; implementation details may change before a public release.
 
 ## 🧭 Repository map
 
@@ -13,18 +13,16 @@ Experiments 001–009; implementation details may change before a public release
 | [ruvoraq-web](../crates/ruvoraq-web/src/lib.rs) | HTTP adapter, extraction, responses, services, OpenAPI, lifecycle. |
 | [ruvoraq-cli](../crates/ruvoraq-cli/src/main.rs) | Command parsing, project generation, module wiring, Cargo launcher. |
 | [ruvoraq-config](../crates/ruvoraq-config/src/lib.rs) | Typed environment snapshots and optional dotenv loading. |
-| [ruvoraq-db](../crates/ruvoraq-db/src/lib.rs) | Optional SQLx SQLite connection and transaction adapter. |
+| [ruvoraq-db](../crates/ruvoraq-db/src/lib.rs) | Optional SQLx SQLite/PostgreSQL pools, transactions, and migrations. |
 
 The public facade is the normal application dependency. The web crate builds on
-Axum and Tokio. Database support is behind the facade's sqlite feature and uses
-SQLx 0.8.6 with its SQLite/runtime features. A workspace build includes the
+Axum and Tokio. Database support is behind the facade's sqlite/postgres features and uses
+SQLx 0.8.6 with runtime/migration support and opt-in backend features. A workspace build includes the
 database member, while a default application dependency does not pull in SQLx.
 
-[examples/app](../examples/app/src/settings.rs) demonstrates the general HTTP
-features. [examples/sqlite-api](../examples/sqlite-api/src/settings.rs)
-demonstrates asynchronous setup and durable data. The [migration-demo](../examples/migration-demo/README.md) provides a fresh
-task API with a migration-first workflow. All three examples are independent
-Cargo workspaces with their own lockfiles.
+The single [comprehensive example](../examples/app/README.md) demonstrates
+typed HTTP handlers, services, configuration and both database backends in one
+independent Cargo workspace. See [complete testing commands](testing_guid.md).
 
 ## 🏗️ Application startup
 
@@ -222,6 +220,61 @@ migrations and migration-file generation remain deferred.
 
 
 
+## 🐘 PostgreSQL adapter
+
+The facade's postgres feature exports PostgresDatabase and the shared
+Migrations/MigrationStatus/sqlx APIs. Its optional database dependency disables
+default features, so a PostgreSQL-only application does not enable SQLite.
+The database crate retains sqlite as its default for existing direct consumers.
+
+PostgresDatabase wraps PgPool with five connections and five-second acquisition
+and lock timeouts. It requires an existing postgres:// or postgresql:// database.
+Parsing and connection failures redact raw URLs and driver diagnostics.
+The PostgreSQL feature includes SQLx's Rustls support; the phase has verified
+plaintext local connections and TLS-required rejection, not a successful
+certificate-verified TLS handshake.
+
+SQLite and PostgreSQL use explicit provider types and backend-native SQL.
+PostgreSQL queries use $1/$2 parameters and identity columns in the example.
+No cross-backend ORM or SQL translation is provided.
+
+Migrations share file validation and checksum/history checks. PostgreSQL reads
+history through the connection's search path, acquires SQLx's database advisory
+lock, validates history, and applies pending files on that same connection.
+The connection is closed on every outcome so session locks are not returned to
+the pool. A statement error reports rollback; commit/bookkeeping errors tell
+the user to inspect history. A real test injects a bookkeeping failure after
+commit and proves retries skip the committed file and the lock is released.
+
+The CLI's independent postgres feature adds URL-based PostgreSQL migration
+routing. Its default build remains SQLite-capable. Application feature flags
+and installed CLI feature flags are separate.
+
+### Real PostgreSQL tests
+
+Use a dedicated test database with permission to create test schemas:
+
+```sh
+export RUVORAQ_TEST_POSTGRES_URL='postgres://test-user:test-password@127.0.0.1:5433/test-db'
+cargo test -p ruvoraq-db --all-features --locked --test postgres -- --ignored
+```
+
+Five server tests are explicitly ignored in ordinary cargo test runs and must
+be requested as above. They create unique owned schemas and remove them on
+successful completion. A schema left by a failed test remains inside the
+dedicated test database; no application database is dropped.
+
+They cover binding, transactions, foreign keys, reconnection, migration history
+and recovery, concurrent advisory locking, redacted connection errors,
+TLS-required rejection, and post-commit bookkeeping failure. The URL validation
+test runs without a server. A separate default-CLI test covers feature-gating
+diagnostics.
+
+The [PostgreSQL API suite](../examples/app/README.md) performs 27 live
+checks against an initially empty dedicated database. Unlike the schema-based
+adapter tests, it leaves its tables/data there; dispose of that test database
+through your chosen local server workflow.
+
 ## 📚 OpenAPI generation
 
 The document is OpenAPI 3.1. The schema attribute adds the appropriate Schemars
@@ -282,19 +335,26 @@ cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 git diff --check
 ```
 
-The examples are independent workspaces; verify them separately:
+The single comprehensive example is an independent workspace. Verify both backends:
 
 ```sh
 cargo check --manifest-path examples/app/Cargo.toml --locked
-cargo check --manifest-path examples/sqlite-api/Cargo.toml --locked
-cargo check --manifest-path examples/migration-demo/Cargo.toml --locked
+cargo check --manifest-path examples/app/Cargo.toml --no-default-features --features postgres --locked
 cargo clippy --manifest-path examples/app/Cargo.toml --all-targets --locked -- -D warnings
-cargo clippy --manifest-path examples/sqlite-api/Cargo.toml --all-targets --locked -- -D warnings
-cargo clippy --manifest-path examples/migration-demo/Cargo.toml --all-targets --locked -- -D warnings
-cargo install --path crates/ruvoraq-cli --locked --force
-python3 examples/app/tests/smoke.py
-python3 examples/sqlite-api/tests/smoke.py
+cargo clippy --manifest-path examples/app/Cargo.toml --all-targets --no-default-features --features postgres --locked -- -D warnings
+cargo install --path crates/ruvoraq-cli --features postgres --locked --force
+python3 examples/app/tests/full_test.py --postgres
 ```
+
+The runner owns a disposable Docker PostgreSQL server and explicitly runs the
+five normally ignored database server tests. See [testing instructions](testing_guid.md).
+MIGRATIONS_DIR is loaded from the configuration snapshot before database access;
+relative paths resolve from the project root. Existing root migrations retain
+the default. The example hook reads the same setting. A CLI regression test
+checks custom directories, process precedence and failure before file creation.
+Docker readiness probes use TCP, avoiding the image's temporary Unix-socket
+initialization server. Temporary test source copies use fresh timestamps so a shared Cargo target
+cannot reuse a previous negative-test binary after source restoration.
 
 Run cargo fmt when making edits, then use the check form. Route files loaded by
 bootstrap expansion may need direct rustfmt invocation because the formatter
@@ -312,7 +372,7 @@ cargo tree -p ruvoraq --no-default-features --prefix none
 SQLx should not appear in the default facade graph. Building every workspace
 member still builds the database member.
 
-### Existing evidence
+### Historical evidence before consolidation
 
 Experiment 009 verification recorded:
 
@@ -325,17 +385,28 @@ Experiment 009 verification recorded:
 | Migration integration tests | Ordering, repeat/append, rollback/retry, changed/missing/dirty history, invalid sources, persistence. |
 | Build/lint checks | Workspace and three independent applications, with strict Clippy. |
 
-The automated live suites total 98 checks. The task demo's 11 checks were a
+Experiment 010 adds 27 PostgreSQL API checks (125 automated live checks total),
+five explicitly run PostgreSQL server tests, and one server-free PostgreSQL URL
+validation test. The original ordinary workspace runs passed 74 cases per configuration;
+the default-only CLI feature-gating case and PostgreSQL-only URL case differ
+between configurations. All-feature ordinary tests list the five server cases
+as ignored; they were also run explicitly against the temporary server.
+
+The Experiment 009 automated live suites totaled 98 checks. The task demo's 11 checks were a
 separate direct verification run; it has no standalone smoke script.
 These counts describe the recorded validation, not permanent targets.
 
 The automated live suites build temporary copies and own their server processes
 and database files. They exercise startup errors, concurrent requests, signals,
-configuration precedence, schemas, and real HTTP responses. Local task-demo
-test data remains in its ignored SQLite database; it is not committed.
+configuration precedence, schemas, and real HTTP responses. The former task demo was removed during consolidation; test data now lives only
+in owned temporary databases.
+
+Current consolidation verification passes 75 regular tests per workspace
+configuration, 127 live checks (70 general, 30 SQLite, 27 PostgreSQL), and five
+explicitly run PostgreSQL server tests. Both example backends pass strict Clippy.
 
 For manual migration verification, follow the
-[task demo README](../examples/migration-demo/README.md). Run status, apply,
+[comprehensive example README](../examples/app/README.md). Run status, apply,
 status, and apply again before starting the API. A repeat should apply zero
 files without losing existing rows.
 
@@ -355,8 +426,9 @@ guide with working examples, this guide with architectural implications, and
 [project.md](../project.md) with implementation and verification status.
 
 For further migration work, preserve version/checksum validation and test
-recovery before adding reversible or generated workflows. For PostgreSQL, keep
-backend selection explicit and test against a real server rather than treating SQLite success as equivalent.
+recovery before adding reversible or generated workflows. For further PostgreSQL work, retain
+explicit backend selection and real-server tests rather than treating SQLite
+success as equivalent.
 
 Before a public release, establish CI, verify the declared minimum Rust
 toolchain, review public API stability, and replace checkout-specific packaging.

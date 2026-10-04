@@ -11,6 +11,10 @@ publish = false
 name = "ruvoraq"
 path = "src/main.rs"
 
+[features]
+default = []
+postgres = ["ruvoraq-db/postgres"]
+
 [dependencies]
 toml.workspace = true
 syn.workspace = true

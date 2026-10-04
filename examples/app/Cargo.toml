@@ -12,6 +12,11 @@ path = "src/settings.rs"
 [package.metadata.ruvoraq]
 project = true
 
+[features]
+default = ["sqlite"]
+sqlite = ["ruvoraq/sqlite"]
+postgres = ["ruvoraq/postgres"]
+
 [dependencies.ruvoraq]
 path = "/home/xagi/Ruvoraq/crates/ruvoraq"
 

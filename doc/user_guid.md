@@ -2,7 +2,7 @@
 
 Ruvoraq is an experimental Rust backend framework built around small applications,
 route attributes, and optional features. This guide describes the implementation
-through Experiment 009. The framework crates are currently used through local
+through Experiment 010. The framework crates are currently used through local
 path dependencies; they have not been published to crates.io.
 
 ## 🧭 Contents
@@ -16,6 +16,7 @@ path dependencies; they have not been published to crates.io.
 - [OpenAPI and Swagger UI](#-openapi-and-swagger-ui)
 - [SQLite persistence](#-sqlite-persistence)
 - [Versioned SQLite migrations](#-versioned-sqlite-migrations)
+- [Optional PostgreSQL](#-optional-postgresql)
 - [Examples and troubleshooting](#-examples-and-troubleshooting)
 
 ## 🚀 Start an application
@@ -88,7 +89,7 @@ updating that path.
 | `ruvoraq --help` | Show supported commands. |
 | `ruvoraq --version` | Show the installed CLI version. |
 | `ruvoraq new <project-name>` | Create the protected three-file application. |
-| `ruvoraq migrate [--status]` | Apply or inspect numbered SQLite migrations. |
+| `ruvoraq migrate [--status]` | Apply or inspect migrations; PostgreSQL requires the CLI postgres feature. |
 | `ruvoraq dev` | Build and run the current marked application. |
 | `ruvoraq add app <module-name>` | Add and wire an optional application module. |
 
@@ -444,10 +445,11 @@ Database::begin creates a transaction; commit saves it, rollback cancels it,
 and dropping an uncommitted transaction rolls it back. Database clones share
 the pool, so closing one closes the shared pool.
 
-The [complete SQLite example](../examples/sqlite-api/README.md) contains schema
+The [complete SQLite example](../examples/app/README.md) contains schema
 initialization, validated CRUD routes, and persistence tests. It uses numbered SQL files and
-startup migration checks. PostgreSQL, an ORM, reversible migrations, migration
-file generators, and database scaffolding are future work.
+startup migration checks. PostgreSQL is available through a separate opt-in
+adapter below. An ORM, reversible migrations, migration-file generators, and
+database scaffolding remain future work.
 
 ## 🔄 Versioned SQLite migrations
 
@@ -532,57 +534,110 @@ The notes example's first migration uses CREATE TABLE IF NOT EXISTS to preserve
 the known Experiment 008 notes schema. This is not general schema detection or
 an automatic baseline for arbitrary legacy databases.
 
+## 🐘 Optional PostgreSQL
+
+Experiment 010 adds an explicit PostgreSQL adapter. Enable it in your
+application's existing local Ruvoraq dependency:
+
+```toml
+[dependencies.ruvoraq]
+path = "/home/xagi/Ruvoraq/crates/ruvoraq"
+features = ["postgres"]
+```
+
+Use PostgresDatabase for PostgreSQL and Database for SQLite. Both provide
+pool(), begin(), close(), migrate(), and migration_status(). Either can be
+registered with App::provide and extracted through Inject<T>.
+
+In your existing async configure hook:
+
+```rust
+async fn configure(app: ruvoraq::App) -> std::io::Result<ruvoraq::App> {
+    let url: String = app.env().get("DATABASE_URL")?;
+    let database = ruvoraq::PostgresDatabase::connect(&url).await?;
+    database.migrate("migrations").await?;
+    Ok(app.provide(database))
+}
+```
+
+Replace the existing bootstrap invocation with
+`ruvoraq::bootstrap!(async configure);`. Provision the database separately and
+set DATABASE_URL to a postgres:// or postgresql:// URL. The adapter does not
+create a PostgreSQL database or account.
+
+PostgreSQL uses its own SQL syntax. For a bound query:
+
+```rust
+let row: Option<(i64, String)> =
+    sqlx::query_as("SELECT id, title FROM notes WHERE id = $1")
+        .bind(id)
+        .fetch_optional(database.pool())
+        .await
+        .map_err(|_| Error::internal())?;
+```
+
+This fragment assumes an Inject<PostgresDatabase>, an id, and an initialized
+notes table. Keep PostgreSQL migrations in the PostgreSQL application's
+migrations/ folder; the SQLite examples' SQL is not converted automatically.
+
+To use the same migrate commands with PostgreSQL, install the optional CLI
+feature from the framework root:
+
+```sh
+cargo install --path crates/ruvoraq-cli --features postgres --locked --force
+```
+
+Then, from the PostgreSQL application root:
+
+```sh
+ruvoraq migrate --status
+ruvoraq migrate
+ruvoraq dev
+```
+
+The URL scheme selects the CLI backend. An installed CLI without the postgres
+feature gives a clear reinstall instruction without exposing the URL.
+
+The PostgreSQL pool permits five connections, with five-second acquisition
+and PostgreSQL lock timeouts. Migration runs hold a PostgreSQL advisory lock
+across history validation and per-file transactions. The migration connection
+is closed after success or failure to release session locks.
+
+Connection diagnostics omit the URL and underlying driver details. Native
+SQLx query errors still need mapping to Error::internal in HTTP handlers.
+
+TLS support is provided by SQLx/Rustls, with policy selected through connection
+options. Testing used a local PostgreSQL 17 server without TLS and verified that
+requiring TLS fails against it. Certificate-verified TLS connections remain
+unverified in this phase.
+
+See the [complete PostgreSQL example](../examples/app/README.md) for
+local database setup, CRUD, migrations, and its 27-check live suite. The
+consolidated example defaults to port 8000. PostgreSQL support remains optional; a default generated application
+has no SQLx dependency.
+
 ## 🧪 Examples and troubleshooting
 
-The general API and notes examples use port 8000. Run one at a time on that
-port or override RUVORAQ_PORT:
+One comprehensive application now combines the school/billing API and notes
+database examples. SQLite is the default; PostgreSQL is an explicit feature.
+Use [the complete testing guide](testing_guid.md) for a fresh project, manual
+HTTP commands, expected responses, configuration and both database backends.
 
 ```sh
 cd /home/xagi/Ruvoraq/examples/app
-ruvoraq dev
-```
-
-This application demonstrates school and billing modules, typed inputs,
-validation, named response statuses, services, environment configuration, and
-OpenAPI. Student records and counters are in memory and reset on restart.
-Billing is an illustrative counter, not a payment system.
-
-```sh
-cd /home/xagi/Ruvoraq/examples/sqlite-api
-ruvoraq dev
-```
-
-This application exposes /notes and /notes/{id}; records persist across restarts
-in notes.sqlite unless DATABASE_URL selects another database.
-
-For a migration-first walkthrough, use the
-[task example](../examples/migration-demo/README.md):
-
-```sh
-cd /home/xagi/Ruvoraq/examples/migration-demo
 cp -n .env.example .env
 ruvoraq migrate --status
 ruvoraq migrate
-ruvoraq migrate --status
-ruvoraq migrate
 ruvoraq dev
+# From the framework root, run all automated live checks:
+cd /home/xagi/Ruvoraq
+python3 examples/app/tests/full_test.py --postgres
 ```
 
-On a fresh database, the first apply reports two migrations and the repeat
-reports zero. Open http://127.0.0.1:8010/docs. GET /tasks lists persistent tasks,
-POST /tasks creates one, and GET /tasks/{id} reads one. The local tasks.sqlite
-file is ignored by Git. Its .env selects the same database for the CLI and
-server, so both use the same version history.
-
-Live tests, run from the framework root:
-
-```sh
-python3 examples/app/tests/smoke.py
-python3 examples/sqlite-api/tests/smoke.py
-```
-
-The general suite performs 68 checks and the notes suite performs 30.
-The task demo was additionally verified with 11 direct live checks.
+MIGRATIONS_DIR selects the migration folder. The CLI defaults to migrations;
+this example's .env selects migrations/sqlite. PostgreSQL uses
+migrations/postgres and `cargo run --no-default-features --features postgres`.
+Process environment variables override .env for this setting too.
 
 | Issue | What to check |
 | --- | --- |
@@ -592,6 +647,7 @@ The task demo was additionally verified with 11 direct live checks.
 | Missing service at startup | Register the exact Inject<T> type in configure. |
 | JSON request is rejected | Check Content-Type, field types, body size, and validation. |
 | Documentation status differs from HTTP | Match attribute metadata to the actual response helper. |
+| PostgreSQL CLI support is unavailable | Reinstall crates/ruvoraq-cli with --features postgres. |
 | Migration CLI reports missing DATABASE_URL | Set it in the environment or project .env; the CLI does not run configure. |
 | Applied migration has changed | Restore the original file; append a new version for changes. |
 | Database connection fails | Check the sqlite: URL, parent directory, and permissions. |

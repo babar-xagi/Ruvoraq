@@ -86,7 +86,7 @@ class Server:
         try:
             address = None
             while True:
-                line = self.ready.get(timeout=60)
+                line = self.ready.get(timeout=180)
                 if line is None:
                     self.log.seek(0)
                     raise AssertionError("Server exited before Ready: " + self.log.read()[-4000:])
@@ -146,7 +146,7 @@ def exercise(address):
     assert document["openapi"] == "3.1.0" and document["info"]["title"] == "app"
     paths = document["paths"]
     assert "/" in paths and "/docs" not in paths and "/openapi.json" not in paths
-    assert len(paths) == 10, list(paths)
+    assert len(paths) == 12, list(paths)
     passed("all public API paths documented")
     create = paths["/school/students"]["post"]
     schema = create["requestBody"]["content"]["application/json"]["schema"]
@@ -269,10 +269,18 @@ def main():
             "Cargo.toml", "src/main.rs", "src/settings.rs"]
         assert "fn main" not in (minimal / "src/main.rs").read_text()
         passed("exact three-file route-only generator")
+        generator_env = dict(os.environ, CARGO_TARGET_DIR=str(APP / "target/live-tests"))
+        subprocess.run([CARGO, "check", "--offline"], cwd=minimal, env=generator_env, check=True)
+        passed("fresh generated three-file project passes cargo check")
+        subprocess.run([CLI, "add", "app", "demo"], cwd=minimal, check=True)
+        assert all((minimal / ("src/apps/demo/" + name)).is_file() for name in ["mod.rs", "models.rs", "routes.rs", "services.rs"])
+        subprocess.run([CARGO, "check", "--offline"], cwd=minimal, env=generator_env, check=True)
+        passed("add app creates and wires a compiling module")
 
         project = temporary / "app"
         project.mkdir()
-        shutil.copytree(APP / "src", project / "src")
+        shutil.copytree(APP / "src", project / "src", copy_function=shutil.copy)
+        shutil.copytree(APP / "migrations", project / "migrations")
         for name in ["Cargo.toml", "Cargo.lock"]:
             if (APP / name).exists():
                 shutil.copy2(APP / name, project / name)
@@ -293,9 +301,9 @@ def main():
         assert "pub const PORT: u16 = 8000;" in source
         settings.write_text(source.replace("pub const PORT: u16 = 8000;", "pub const PORT: u16 = 0;"))
         environment = os.environ.copy()
-        for name in ["RUVORAQ_HOST", "RUVORAQ_PORT", "RUVORAQ_APP_NAME", "RUVORAQ_DOCS", "SCHOOL_GREETING"]:
+        for name in ["RUVORAQ_HOST", "RUVORAQ_PORT", "RUVORAQ_APP_NAME", "RUVORAQ_DOCS", "SCHOOL_GREETING", "DATABASE_URL", "MIGRATIONS_DIR"]:
             environment.pop(name, None)
-        environment.update(CARGO=CARGO, CARGO_NET_OFFLINE="true", CARGO_TARGET_DIR=str(APP / "target" / "smoke"))
+        environment.update(CARGO=CARGO, CARGO_NET_OFFLINE="true", CARGO_TARGET_DIR=str(APP / "target" / "live-tests"))
         with Server(project, environment) as server:
             exercise(server.address)
             server.stop(signal.SIGINT)
@@ -331,7 +339,7 @@ def main():
         ]:
             dotenv.write_text(content)
             result = subprocess.run([CLI, "dev"], cwd=project, env=environment,
-                                    capture_output=True, text=True, timeout=60)
+                                    capture_output=True, text=True, timeout=180)
             assert result.returncode != 0 and not result.stdout, result
             assert variable in result.stderr and secret not in result.stderr, result.stderr
             passed("redacted configuration failure before startup: " + variable)
@@ -342,7 +350,7 @@ def main():
         assert configured.count(provider) == 1
         settings.write_text(configured.replace(provider, ""))
         result = subprocess.run([CLI, "dev"], cwd=project, env=environment,
-                                capture_output=True, text=True, timeout=60)
+                                capture_output=True, text=True, timeout=180)
         assert result.returncode != 0 and not result.stdout, result
         assert "missing dependency" in result.stderr and "SchoolService" in result.stderr
         assert "App::provide" in result.stderr

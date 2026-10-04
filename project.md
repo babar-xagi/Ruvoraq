@@ -10,17 +10,17 @@ proposals, not delivered features or promised release dates.
 ## 📍 Current position
 
 - Version: 0.1.0, experimental local development.
-- Current implementation: Experiment 009, versioned SQLite migrations.
-- This revision includes the migration API, CLI, examples, tests, and updated guides.
-- Three runnable examples: in-memory API, persistent notes, and migration-first tasks.
-- Verification: 73 framework tests, 98 automated live checks, and 11 task-demo live checks.
+- Current implementation: Experiment 010, optional PostgreSQL support and consolidated testing.
+- Delivery includes Experiment 010 and the fresh comprehensive example; see Git history.
+- One runnable example: school/billing APIs with SQLite or PostgreSQL notes.
+- Verification: 75 regular tests per configuration, five real PostgreSQL tests,
+  and 127 automated live checks, plus direct fresh-example migration/restart checks.
 - Framework crates: not published to crates.io.
-- Next proposed phase: optional PostgreSQL, subject to the maintainer's selected scope.
+- Next proposed phase: request middleware and observability, with scope selected by the maintainer.
 - Delivery identifiers and branch publication are recorded in Git history.
 
 The current foundation is functional and tested. It is not yet a complete
-production platform with authentication, server-database support, operations
-tooling, or AI.
+production platform with authentication, complete operations tooling, or AI.
 
 ## ✅ Completed experiments
 
@@ -34,7 +34,8 @@ tooling, or AI.
 | 006 — API documentation | Automatic OpenAPI 3.1, offline Swagger UI, API testing UI and screenshot. | Pushed |
 | 007 — Configuration | Typed environment snapshots, optional dotenv, built-in settings overrides. | Pushed |
 | 008 — SQLite | Optional database feature, bound SQL, transactions, async setup, durable notes example. | Pushed |
-| 009 — Migrations | Ordered SQL files, checksums, history validation, transactions, CLI status/apply, startup migrations. | Complete in this revision |
+| 009 — Migrations | Ordered SQL files, checksums, history validation, transactions, CLI status/apply, startup migrations. | Pushed |
+| 010 — PostgreSQL | Opt-in provider, transactions, migration locks, feature-aware CLI, real-server tests, and example. | Verified; included in this delivery |
 
 These experiments extend one framework; their numbers record actual work.
 Earlier experiment limitations should not be read as current feature limits.
@@ -80,7 +81,7 @@ Earlier experiment limitations should not be read as current feature limits.
 - [x] Forward-only versioned SQLite migrations.
 - [x] SQLite migration apply/status CLI commands.
 - [ ] Database scaffolding and reversible migration CLI commands.
-- [ ] PostgreSQL adapter and integration coverage.
+- [x] Optional PostgreSQL adapter and real-server integration coverage.
 - [ ] ORM or high-level model/repository generation.
 
 ## 🏗️ Repository structure
@@ -102,20 +103,33 @@ Ruvoraq/
 │   ├── ruvoraq-macros/
 │   └── ruvoraq-web/
 └── examples/
-    ├── app/
-    ├── migration-demo/
-    └── sqlite-api/
+    └── app/
 ```
 
 The singular doc/ directory contains the requested written guides. The existing
 plural docs/ directory holds the captured Swagger image.
 
-The default facade uses the web/configuration foundation. SQLite is optional
+The default facade uses the web/configuration foundation. SQLite and PostgreSQL are optional
 for applications, although workspace checks include the database crate.
 The framework currently uses Axum/Tokio for HTTP, Schemars for schema generation,
-and SQLx for SQLite.
+and SQLx for SQLite/PostgreSQL.
 
 ## 🧪 Verification evidence
+
+### Experiment 010 initial verification (before consolidation)
+
+Default and all-feature workspace runs each pass 74 regular tests. The
+default-only CLI gating test and PostgreSQL-only URL test differ between those
+runs. Five additional server tests were explicitly requested and passed on an
+isolated PostgreSQL 17 container. The API suites pass 125 live checks:
+68 general, 30 SQLite, and 27 PostgreSQL. PostgreSQL-only builds and strict
+Clippy also pass. TLS-required rejection is tested; successful verified-TLS
+connections are not yet tested.
+
+The temporary PostgreSQL container and generated test credentials are removed
+after verification. Real-server tests are opt-in in ordinary cargo test runs.
+
+### Experiment 009
 
 Experiment 009 adds seven framework tests (73 total) and extends the SQLite
 live suite to 30 checks. The general live suite retains 68 checks, for 98
@@ -125,7 +139,7 @@ workspace and independent examples. The default facade still excludes SQLx.
 A fresh migration-demo example was also generated and exercised in its own
 directory: two pending versions applied, repeated application skipped both,
 and 11 live checks verified the task API, documentation, signals, and restart
-persistence. Its local database and .env remain ignored by Git.
+persistence. That historical demo was subsequently removed during example consolidation.
 
 ### Experiment 008 baseline
 
@@ -153,7 +167,7 @@ unverified.
 ## 🚧 Current limitations
 
 - dev builds and runs; file watching and hot reload are not implemented.
-- SQLite uses one connection; PostgreSQL, reversible migrations, and pool tuning are pending.
+- SQLite uses one connection and PostgreSQL uses five; configurable pool tuning and reversible migrations are pending.
 - Example school/billing state is in memory; billing is not payment processing.
 - Custom validation rules are not automatically translated into OpenAPI.
 - Custom extractors, aliases, and dynamic response types have documentation limits.
@@ -182,15 +196,20 @@ The API offers Database::migrate and Database::migration_status.
 Reversible migrations, file generation, and cross-process coordination remain
 future work; scripts must leave transaction boundaries to the runner.
 
-### Experiment 010 — Optional PostgreSQL
+### Experiment 010 — Optional PostgreSQL (implemented locally)
 
 Goal: support a server database while retaining a minimal default application.
 
-- [ ] Decide shared database abstractions versus explicit backend types.
-- [ ] Add optional PostgreSQL connection/configuration support.
-- [ ] Test binding, transactions, migrations, and connection failures on a real server.
-- [ ] Document backend differences rather than hiding them.
-- [ ] Keep SQLx backend dependencies opt-in.
+- [x] Decide shared database abstractions versus explicit backend types.
+- [x] Add optional PostgreSQL connection/configuration support.
+- [x] Test binding, transactions, migrations, and connection failures on a real server.
+- [x] Document backend differences rather than hiding them.
+- [x] Keep SQLx backend dependencies opt-in.
+
+### Experiment 011 — Request middleware and observability (proposed)
+
+Goal: expose useful request diagnostics and explicit HTTP policies while keeping
+application handlers small. Exact APIs and scope remain to be decided.
 
 ### Later foundation work
 
@@ -238,8 +257,9 @@ features are implemented by the current experiments.
 - [x] Update every maintained guide and example README.
 - [x] Review tracked files and keep local databases/.env out of the delivery.
 
-The migration implementation and documentation are delivered together in this
-revision. Consult Git history for the commit and remote branch state.
+Experiment 009 was delivered in commit 8fc3f7a. Experiment 010 and the
+consolidated example are included in the following delivery. Consult Git
+history for commit identifiers and remote branch state.
 
 Before a first public release, verify the minimum Rust toolchain, establish CI,
 review the public API, and resolve packaging and package ownership. Keep those
@@ -247,3 +267,26 @@ release tasks separate from completing an individual experiment.
 
 Update this file whenever scope, verification evidence, or repository status
 changes. Mark planned work complete only after implementation and verification.
+
+## 🧪 Fresh example consolidation (Experiments 001–010)
+
+- [x] Remove all four previous example applications and generate one fresh app.
+- [x] Verify the generator creates exactly three files and the result compiles.
+- [x] Exercise add app, then combine school/billing APIs with persistent notes.
+- [x] Keep SQLite as the example default and PostgreSQL an explicit feature.
+- [x] Add MIGRATIONS_DIR so CLI and startup select backend-specific SQL consistently.
+- [x] Add a migration-directory/precedence regression test.
+- [x] Fix stale Cargo reuse caused by preserving temporary source timestamps.
+- [x] Add a full live runner with an owned disposable PostgreSQL container.
+- [x] Fix PostgreSQL readiness probing to wait for the final TCP server.
+- [x] Write [complete manual and automated testing commands](doc/testing_guid.md).
+
+The consolidated suite supersedes the old multi-example commands. Historical
+verification counts above describe previous runs. The maintainer requested
+publication of this verified work. Minimum Rust-toolchain and successful
+certificate-verified PostgreSQL TLS checks remain future work.
+
+Current consolidation verification: **75 regular tests per workspace feature
+configuration, 127 live checks, and five real PostgreSQL server tests passed**.
+Format, build, check and strict Clippy passed for the framework and both example
+backends. The owned PostgreSQL test container and credentials were removed.

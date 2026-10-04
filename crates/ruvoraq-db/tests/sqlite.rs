@@ -1,3 +1,4 @@
+#![cfg(feature = "sqlite")]
 use ruvoraq_db::{Database, sqlx};
 use std::{
     fs,

@@ -1,13 +1,8 @@
 use super::models::{CreateNote, Note};
 use ruvoraq::prelude::*;
 
-#[get("/")]
-async fn hello() -> &'static str {
-    "Persistent notes API"
-}
-
 #[get("/notes")]
-async fn notes(db: Inject<Database>) -> Result<Vec<Note>> {
+async fn notes(db: Inject<PostgresDatabase>) -> Result<Vec<Note>> {
     let rows: Vec<(i64, String)> = sqlx::query_as("SELECT id,title FROM notes ORDER BY id")
         .fetch_all(db.pool())
         .await
@@ -16,11 +11,11 @@ async fn notes(db: Inject<Database>) -> Result<Vec<Note>> {
 }
 #[post("/notes", status = 201)]
 async fn create(
-    db: Inject<Database>,
+    db: Inject<PostgresDatabase>,
     ValidatedJson(input): ValidatedJson<CreateNote>,
 ) -> Result<Reply<Note>> {
     let row: (i64, String) =
-        sqlx::query_as("INSERT INTO notes (title) VALUES (?) RETURNING id,title")
+        sqlx::query_as("INSERT INTO notes (title) VALUES ($1) RETURNING id,title")
             .bind(input.title.trim())
             .fetch_one(db.pool())
             .await
@@ -28,8 +23,8 @@ async fn create(
     Ok(created(Note::from(row)))
 }
 #[get("/notes/{id}")]
-async fn note(db: Inject<Database>, Path(id): Path<i64>) -> Result<Note> {
-    let row: Option<(i64, String)> = sqlx::query_as("SELECT id,title FROM notes WHERE id=?")
+async fn note(db: Inject<PostgresDatabase>, Path(id): Path<i64>) -> Result<Note> {
+    let row: Option<(i64, String)> = sqlx::query_as("SELECT id,title FROM notes WHERE id=$1")
         .bind(id)
         .fetch_optional(db.pool())
         .await
@@ -39,12 +34,12 @@ async fn note(db: Inject<Database>, Path(id): Path<i64>) -> Result<Note> {
 }
 #[put("/notes/{id}")]
 async fn update(
-    db: Inject<Database>,
+    db: Inject<PostgresDatabase>,
     Path(id): Path<i64>,
     ValidatedJson(input): ValidatedJson<CreateNote>,
 ) -> Result<Note> {
     let row: Option<(i64, String)> =
-        sqlx::query_as("UPDATE notes SET title=? WHERE id=? RETURNING id,title")
+        sqlx::query_as("UPDATE notes SET title=$1 WHERE id=$2 RETURNING id,title")
             .bind(input.title.trim())
             .bind(id)
             .fetch_optional(db.pool())
@@ -54,8 +49,8 @@ async fn update(
         .ok_or_else(|| not_found("Note not found"))
 }
 #[delete("/notes/{id}", status = 204)]
-async fn remove(db: Inject<Database>, Path(id): Path<i64>) -> Result<Response> {
-    let result = sqlx::query("DELETE FROM notes WHERE id=?")
+async fn remove(db: Inject<PostgresDatabase>, Path(id): Path<i64>) -> Result<Response> {
+    let result = sqlx::query("DELETE FROM notes WHERE id=$1")
         .bind(id)
         .execute(db.pool())
         .await
