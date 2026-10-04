@@ -17,7 +17,14 @@
 use std::{future::Future, io};
 
 pub use ruvoraq_macros::{bootstrap, delete, get, patch, post, put};
-pub use ruvoraq_web::{App, Settings};
+pub use ruvoraq_web::{
+    App, Error, HeaderMap, IntoResponse, Json, Path, Query, Reply, Response, Result, Settings,
+    StatusCode, Validate, ValidatedJson, accepted, bad_request, created, invalid, no_content,
+    not_found, ok,
+};
+pub use serde;
+pub use serde::{Deserialize, Serialize};
+pub use serde_json::{Value, json};
 
 /// Start the Tokio runtime and run an application's async entry point.
 ///
@@ -34,11 +41,16 @@ where
 
 /// Common application imports.
 pub mod prelude {
-    pub use crate::{App, Settings, delete, get, patch, post, put, run};
+    pub use crate::{
+        App, Deserialize, Error, HeaderMap, IntoResponse, Json, Path, Query, Reply, Response,
+        Result, Serialize, Settings, StatusCode, Validate, ValidatedJson, Value, accepted,
+        bad_request, created, delete, get, invalid, json, no_content, not_found, ok, patch, post,
+        put, run,
+    };
 }
 
 /// Implementation details used by generated code, not a stable application API.
 #[doc(hidden)]
 pub mod __private {
-    pub use ruvoraq_web::{RouteRegistration, inventory};
+    pub use ruvoraq_web::{HandlerOutput, Respond, RouteRegistration, inventory};
 }

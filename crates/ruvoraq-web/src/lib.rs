@@ -1,9 +1,23 @@
 //! Minimal HTTP routing and server lifecycle, backed by Axum and Tokio.
 
-use std::{future::Future, io, net::SocketAddr};
+mod error;
+mod extract;
+mod reply;
+mod respond;
+
+use std::{collections::BTreeMap, future::Future, io, net::SocketAddr};
 
 use axum::{Router, handler::Handler, routing};
 use tokio::net::TcpListener;
+use tower_http::catch_panic::CatchPanicLayer;
+
+pub use axum::http::{HeaderMap, StatusCode};
+pub use axum::response::{IntoResponse, Response};
+pub use error::{Error, Result};
+pub use extract::{Json, Path, Query, Validate, ValidatedJson};
+pub use reply::{Reply, accepted, bad_request, created, invalid, no_content, not_found, ok};
+#[doc(hidden)]
+pub use respond::{HandlerOutput, Respond};
 
 /// The application identity and listening address.
 ///
@@ -51,6 +65,7 @@ impl App {
                 "no Ruvoraq routes registered; add #[get(\"/\")] to an async handler",
             ));
         }
+        let mut shapes = BTreeMap::new();
         let mut previous = None;
         let mut app = Self::new();
         for route in routes {
@@ -61,10 +76,43 @@ impl App {
                     format!("duplicate Ruvoraq route: {} {}", route.method, route.path),
                 ));
             }
+            let shape = route
+                .path
+                .split('/')
+                .map(|segment| {
+                    if segment.starts_with('{') {
+                        "{}"
+                    } else {
+                        segment
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join("/");
+            if let Some(existing) = shapes.insert(shape, route.path) {
+                if existing != route.path {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        format!(
+                            "conflicting Ruvoraq route patterns: {existing} and {}; use identical parameter names for shared paths",
+                            route.path
+                        ),
+                    ));
+                }
+            }
             previous = Some(key);
             app = (route.register)(app);
         }
         Ok(app)
+    }
+
+    /// Expose the Axum adapter with Ruvoraq fallbacks and panic handling applied.
+    pub fn into_router(self) -> Router {
+        self.router
+            .fallback(|| async { Error::not_found("Route not found") })
+            .method_not_allowed_fallback(|| async { Error::method_not_allowed() })
+            .layer(CatchPanicLayer::custom(
+                |_: Box<dyn std::any::Any + Send>| Error::internal().into_response(),
+            ))
     }
 
     pub fn settings(mut self, settings: Settings) -> Self {
@@ -146,7 +194,7 @@ impl App {
         println!("Server:      http://{}", listener.local_addr()?);
         println!("Ready");
 
-        axum::serve(listener, self.router)
+        axum::serve(listener, self.into_router())
             .with_graceful_shutdown(shutdown)
             .await?;
         println!("Stopped");

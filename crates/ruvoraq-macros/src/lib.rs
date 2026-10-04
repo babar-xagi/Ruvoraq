@@ -32,23 +32,70 @@ fn route(method: &str, attribute: TokenStream, item: TokenStream) -> TokenStream
         .to_compile_error()
         .into();
     }
+    for (index, argument) in signature.inputs.iter().enumerate() {
+        if let syn::FnArg::Typed(argument) = argument {
+            if let syn::Type::Path(ty) = argument.ty.as_ref() {
+                if ty.path.segments.last().is_some_and(|segment| {
+                    segment.ident == "Json" || segment.ident == "ValidatedJson"
+                }) && index + 1 != signature.inputs.len()
+                {
+                    return syn::Error::new_spanned(argument,
+                        "Ruvoraq body extractors Json/ValidatedJson must be the last handler argument")
+                        .to_compile_error().into();
+                }
+            }
+        }
+    }
     let value = path.value();
     if !value.starts_with('/')
         || value
             .chars()
-            .any(|ch| ch.is_whitespace() || matches!(ch, '?' | '#' | '{' | '}' | '*'))
+            .any(|ch| ch.is_whitespace() || matches!(ch, '?' | '#' | '*'))
         || value.split('/').any(|part| part.starts_with(':'))
     {
         return syn::Error::new_spanned(
             &path,
-            "Ruvoraq route paths must be static paths starting with '/' (no parameters, queries or fragments yet)",
-        )
-        .to_compile_error()
-        .into();
+            "Ruvoraq route paths must start with '/' (no queries, fragments, wildcards or legacy :parameters)",
+        ).to_compile_error().into();
+    }
+    let mut parameters = std::collections::HashSet::new();
+    for segment in value.split('/') {
+        if segment.contains('{') || segment.contains('}') {
+            let valid = segment
+                .strip_prefix('{')
+                .and_then(|part| part.strip_suffix('}'))
+                .is_some_and(|name| {
+                    let mut chars = name.chars();
+                    chars
+                        .next()
+                        .is_some_and(|ch| ch.is_ascii_alphabetic() || ch == '_')
+                        && chars.all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
+                        && parameters.insert(name)
+                });
+            if !valid {
+                return syn::Error::new_spanned(&path,
+                    "Ruvoraq path parameters must be unique identifiers in complete {name} segments")
+                    .to_compile_error().into();
+            }
+        }
     }
 
     let name = &signature.ident;
     let builder = syn::Ident::new(&method.to_ascii_lowercase(), name.span());
+    let arguments: Vec<_> = signature
+        .inputs
+        .iter()
+        .enumerate()
+        .map(|(index, input)| {
+            let syn::FnArg::Typed(input) = input else {
+                unreachable!("receiver rejected above")
+            };
+            let name = quote::format_ident!("__ruvoraq_argument_{index}");
+            (name, &input.ty)
+        })
+        .collect();
+    let argument_names: Vec<_> = arguments.iter().map(|(name, _)| name).collect();
+    let argument_types: Vec<_> = arguments.iter().map(|(_, ty)| ty).collect();
     // A disabled function must not leave a registration referencing it.
     let conditions: Vec<_> = function
         .attrs
@@ -66,38 +113,47 @@ fn route(method: &str, attribute: TokenStream, item: TokenStream) -> TokenStream
             ::ruvoraq::__private::RouteRegistration {
                 method: #method,
                 path: #path,
-                register: |app: ::ruvoraq::App| app.#builder(#path, #name),
+                register: |app: ::ruvoraq::App| app.#builder(
+                    #path,
+                    |#(#argument_names: #argument_types),*| async move {
+                        use ::ruvoraq::__private::Respond as _;
+                        let output = ::ruvoraq::__private::HandlerOutput::new(
+                            #name(#(#argument_names),*).await
+                        );
+                        (&&&output).respond()
+                    },
+                ),
             }
         }
     }
     .into()
 }
 
-/// Register an async handler for a static GET path.
+/// Register an async handler for a GET path.
 #[proc_macro_attribute]
 pub fn get(attribute: TokenStream, item: TokenStream) -> TokenStream {
     route("GET", attribute, item)
 }
 
-/// Register an async handler for a static POST path.
+/// Register an async handler for a POST path.
 #[proc_macro_attribute]
 pub fn post(attribute: TokenStream, item: TokenStream) -> TokenStream {
     route("POST", attribute, item)
 }
 
-/// Register an async handler for a static PUT path.
+/// Register an async handler for a PUT path.
 #[proc_macro_attribute]
 pub fn put(attribute: TokenStream, item: TokenStream) -> TokenStream {
     route("PUT", attribute, item)
 }
 
-/// Register an async handler for a static PATCH path.
+/// Register an async handler for a PATCH path.
 #[proc_macro_attribute]
 pub fn patch(attribute: TokenStream, item: TokenStream) -> TokenStream {
     route("PATCH", attribute, item)
 }
 
-/// Register an async handler for a static DELETE path.
+/// Register an async handler for a DELETE path.
 #[proc_macro_attribute]
 pub fn delete(attribute: TokenStream, item: TokenStream) -> TokenStream {
     route("DELETE", attribute, item)

@@ -158,6 +158,7 @@ pub fn create(parent: &Path, name: &str) -> Result<PathBuf, String> {
              [[bin]]\nname = \"{name}\"\npath = \"src/settings.rs\"\n\n\
              [package.metadata.ruvoraq]\nproject = true\n\n\
              [dependencies.ruvoraq]\n{dependency}\n\
+             [dependencies.serde]\nversion = \"1.0.229\"\nfeatures = [\"derive\"]\n\n\
              # Keep this project independent of any surrounding Cargo workspace.\n\
              [workspace]\n"
         );

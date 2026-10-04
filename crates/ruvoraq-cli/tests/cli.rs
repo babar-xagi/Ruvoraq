@@ -572,11 +572,19 @@ fn invalid_route_attributes_fail_at_compile_time_with_useful_diagnostics() {
         ),
         (
             "#[get(\"relative\")]\nasync fn hello() -> &'static str { \"Hello\" }",
-            "route paths must be static paths starting with '/'",
+            "route paths must start with '/'",
         ),
         (
-            "#[get(\"/users/{id}\")]\nasync fn hello() -> &'static str { \"Hello\" }",
-            "route paths must be static paths starting with '/'",
+            "#[get(\"/users/{id\")]\nasync fn hello() -> &'static str { \"Hello\" }",
+            "Ruvoraq path parameters must be unique identifiers in complete {name} segments",
+        ),
+        (
+            "#[get(\"/users/{id}/{id}\")]\nasync fn hello() -> &'static str { \"Hello\" }",
+            "Ruvoraq path parameters must be unique identifiers in complete {name} segments",
+        ),
+        (
+            "#[post(\"/users/{id}\")]\nasync fn hello(Json(_): Json<Value>, Path(_): Path<u64>) {}",
+            "Ruvoraq body extractors Json/ValidatedJson must be the last handler argument",
         ),
         (
             "#[get(\"/\")]\nasync fn hello<T>() -> &'static str { \"Hello\" }",
@@ -628,4 +636,88 @@ fn duplicate_and_missing_routes_fail_before_binding_a_server() {
             "a server banner was emitted despite invalid routes"
         );
     }
+}
+
+#[test]
+fn generated_app_supports_model_derives_and_typed_handler_parameters() {
+    let temp = TempDir::new();
+    assert_success(&temp.run(&["new", "typed-generated"]));
+    let project = temp.0.join("typed-generated");
+    fs::write(
+        project.join("src/main.rs"),
+        r#"
+use ruvoraq::prelude::*;
+
+#[derive(Serialize, Deserialize)]
+struct Model { name: String }
+
+#[post("/models")]
+async fn create(Json(model): Json<Model>) -> Reply<Model> {
+    created(model)
+}
+
+type Output = Model;
+
+#[get("/model")]
+async fn single() -> Output {
+    Model { name: "Ada".into() }
+}
+
+#[get("/model-result")]
+async fn single_result() -> Result<Model> {
+    Ok(Model { name: "Ada".into() })
+}
+
+#[derive(Deserialize)]
+struct Filter { limit: u16 }
+
+#[get("/models/{id}")]
+async fn read(Path(id): Path<u64>, Query(filter): Query<Filter>) -> Value {
+    json!({"id": id, "limit": filter.limit})
+}
+"#,
+    )
+    .unwrap();
+    let manifest: toml::Table = fs::read_to_string(project.join("Cargo.toml"))
+        .unwrap()
+        .parse()
+        .unwrap();
+    assert_eq!(
+        manifest["dependencies"]["serde"]["features"]
+            .as_array()
+            .unwrap()[0]
+            .as_str(),
+        Some("derive")
+    );
+    assert_eq!(
+        entries(&project),
+        ["Cargo.toml", "src/", "src/main.rs", "src/settings.rs"]
+    );
+    check_generated_project(&temp, &project);
+}
+
+#[test]
+fn incompatible_parameter_names_fail_before_binding() {
+    let temp = TempDir::new();
+    assert_success(&temp.run(&["new", "conflicting-patterns"]));
+    let project = temp.0.join("conflicting-patterns");
+    fs::write(
+        project.join("src/main.rs"),
+        r#"
+use ruvoraq::prelude::*;
+#[get("/users/{id}")]
+async fn read() -> &'static str { "read" }
+#[post("/users/{name}")]
+async fn create() -> &'static str { "create" }
+"#,
+    )
+    .unwrap();
+    let output = cargo_for_project(&project, "run");
+    assert!(!output.status.success());
+    assert!(output.stdout.is_empty());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("conflicting Ruvoraq route patterns"),
+        "{stderr}"
+    );
 }

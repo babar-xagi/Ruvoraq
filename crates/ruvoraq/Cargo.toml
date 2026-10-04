@@ -11,6 +11,10 @@ publish = false
 ruvoraq-web = { path = "../ruvoraq-web" }
 ruvoraq-macros = { path = "../ruvoraq-macros" }
 tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
 
 [dev-dependencies]
+axum.workspace = true
+tower.workspace = true
 tokio = { workspace = true, features = ["macros", "io-util", "sync", "time"] }
