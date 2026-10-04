@@ -1,0 +1,16 @@
+[package]
+name = "ruvoraq-web"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Experiment 002: Ruvoraq HTTP adapter"
+publish = false
+
+[dependencies]
+axum.workspace = true
+inventory.workspace = true
+tokio.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "io-util", "sync", "time"] }

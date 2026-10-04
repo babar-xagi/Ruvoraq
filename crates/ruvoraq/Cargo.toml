@@ -1,0 +1,16 @@
+[package]
+name = "ruvoraq"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Ruvoraq public API"
+publish = false
+
+[dependencies]
+ruvoraq-web = { path = "../ruvoraq-web" }
+ruvoraq-macros = { path = "../ruvoraq-macros" }
+tokio.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "io-util", "sync", "time"] }

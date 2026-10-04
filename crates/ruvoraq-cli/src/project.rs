@@ -104,6 +104,20 @@ fn io_error(action: &str, path: &Path, error: io::Error) -> String {
 
 pub fn create(parent: &Path, name: &str) -> Result<PathBuf, String> {
     validate_name(name)?;
+    // Until publication, generated applications depend on this source checkout.
+    let framework = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../ruvoraq")
+        .canonicalize()
+        .map_err(|error| format!("cannot locate the local Ruvoraq crate: {error}"))?;
+    if !framework.join("Cargo.toml").is_file() {
+        return Err("local Ruvoraq crate is missing Cargo.toml".into());
+    }
+    let framework = framework
+        .to_str()
+        .ok_or("local Ruvoraq path must be valid UTF-8")?;
+    // A TOML serializer handles spaces, Unicode, quotes and Windows backslashes.
+    let dependency = toml::to_string(&std::collections::BTreeMap::from([("path", framework)]))
+        .map_err(|error| format!("cannot encode local Ruvoraq dependency: {error}"))?;
     let target = parent.join(name);
     let created_target = match fs::symlink_metadata(&target) {
         Ok(metadata) => {
@@ -140,13 +154,25 @@ pub fn create(parent: &Path, name: &str) -> Result<PathBuf, String> {
         created_src = true;
 
         let manifest = format!(
-            "[package]\nname = \"{name}\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n\
-             [dependencies]\n\n\
+            "[package]\nname = \"{name}\"\nversion = \"0.1.0\"\nedition = \"2024\"\nautobins = false\n\n\
+             [[bin]]\nname = \"{name}\"\npath = \"src/settings.rs\"\n\n\
+             [package.metadata.ruvoraq]\nproject = true\n\n\
+             [dependencies.ruvoraq]\n{dependency}\n\
              # Keep this project independent of any surrounding Cargo workspace.\n\
              [workspace]\n"
         );
-        let main = "mod settings;\n\nfn main() {\n    println!(\"Hello from {}!\", settings::APP_NAME);\n}\n";
-        let settings = format!("pub const APP_NAME: &str = \"{name}\";\n");
+        let main = "use ruvoraq::prelude::*;\n\n#[get(\"/\")]\nasync fn hello() -> &'static str {\n    \"Hello\"\n}\n";
+        let settings = format!(
+            "use std::net::Ipv4Addr;\n\nuse ruvoraq::Settings;\n\n\
+             pub const APP_NAME: &str = \"{name}\";\n\
+             pub const HOST: Ipv4Addr = Ipv4Addr::LOCALHOST;\n\
+             pub const PORT: u16 = 8000;\n\n\
+             pub fn settings() -> Settings {{\n\
+             \x20   Settings {{\n\
+             \x20       app_name: APP_NAME.to_owned(),\n\
+             \x20       address: (HOST, PORT).into(),\n\
+             \x20   }}\n}}\n\nruvoraq::bootstrap!();\n"
+        );
 
         for (relative, content) in [
             ("Cargo.toml", manifest.as_str()),
