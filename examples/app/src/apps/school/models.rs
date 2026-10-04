@@ -1,11 +1,13 @@
 use ruvoraq::prelude::*;
 
+#[schema]
 #[derive(Clone, Serialize)]
 pub struct Student {
     pub id: u64,
     pub name: String,
 }
 
+#[schema]
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CreateStudent {
@@ -25,12 +27,14 @@ impl Validate for CreateStudent {
     }
 }
 
+#[schema]
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PatchStudent {
     pub name: Option<String>,
 }
 
+#[schema]
 #[derive(Deserialize)]
 pub struct StudentFilter {
     #[serde(default = "default_limit")]

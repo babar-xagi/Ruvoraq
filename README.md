@@ -5,7 +5,8 @@ a protected three-file project generator. Experiment 002 added route attributes,
 automatic registration, server startup, settings, graceful shutdown and a development
 command. Experiment 003 added typed APIs and simple response helpers.
 Experiment 004 added optional app modules with `ruvoraq add app <name>`.
-**Experiment 005 adds shared services and typed injection** with `Inject<T>`.
+Experiment 005 added shared services and typed injection with `Inject<T>`.
+**Experiment 006 adds automatic OpenAPI and interactive /docs.**
 Small projects still start with exactly three files.
 
 ## Quick start
@@ -117,6 +118,82 @@ device names are rejected. Paths are not accepted. Existing empty directories
 are accepted; non-empty directories (including hidden entries), files and
 symlink targets are refused. Errors go to stderr with exit code 1. Files use
 exclusive creation; failures attempt to remove only entries created by that call.
+
+## Interactive API docs (Experiment 006)
+
+Every attribute-based app serves **/docs** (Swagger UI with "Try it out") and
+**/openapi.json** (OpenAPI 3.1). Start `ruvoraq dev`, then open
+http://127.0.0.1:8000/docs. JavaScript and CSS are bundled locally, so the page
+works without a CDN or an online schema validator.
+
+![Swagger UI showing a successful 201 Created API response](docs/images/swagger-ui.jpg)
+
+A student created through Swagger UI using **Try it out**, with the live
+201 response and JSON body shown above.
+
+Routes, methods, path captures, supported typed input/output and module groups
+are collected automatically. Rust doc comments become operation summaries.
+Keep main.rs route-only; documentation startup stays inside the framework.
+
+Add `#[schema]` to request, response and query models for field schemas:
+
+```rust
+use ruvoraq::prelude::*;
+
+#[schema]
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CreateUser {
+    name: String,
+}
+
+#[schema]
+#[derive(Serialize)]
+struct User {
+    id: u64,
+    name: String,
+}
+
+/// Create a user.
+#[post("/users", status = 201)]
+async fn create_user(Json(input): Json<CreateUser>) -> Reply<User> {
+    created(User { id: 1, name: input.name })
+}
+```
+
+No additional application dependency is needed for `#[schema]`. Serde names,
+optional fields, defaults, nested models and recursive models are supported.
+Custom `Validate` logic still runs normally; document constraints separately
+with Schemars field attributes such as `#[schemars(length(min = 1, max = 80))]`
+when appropriate. Schemas describe fields; they do not replace validation.
+
+The optional `status = 201` argument is documentation metadata: keep it aligned
+with `created()`, `accepted()`, `no_content()` or the actual returned status.
+It does not override response/error handling. Plain JSON/text responses default
+to documented 200. Reply, opaque/custom dynamic responses and status tuples
+use a generic success response unless a status is declared.
+
+Models without `#[schema]` keep working, with an explicitly unavailable schema.
+This first version recognizes the standard Path/Query/Json/ValidatedJson and
+Result/Json/Reply names in signatures; custom extractors and aliases do not yet
+provide full field metadata. HeaderMap keys cannot be inferred automatically.
+Explicit `App::get(...)` builder routes are served but are not documented;
+use route attributes for automatic docs.
+
+Disable the built-in endpoints in settings.rs when needed:
+
+```rust
+fn configure(app: ruvoraq::App) -> ruvoraq::App {
+    app.docs(false)
+}
+ruvoraq::bootstrap!(configure);
+```
+
+The /docs, /openapi.json and two asset paths are reserved while docs are enabled.
+Startup reports conflicts clearly. Vendored Swagger UI 5.11.0 retains its Apache
+license in crates/ruvoraq-web/src/swagger/LICENSE. To update it, replace both
+assets and the matching license from the same swagger-ui-dist release, then
+rerun the documentation and browser tests.
 
 ## Shared services (Experiment 005)
 

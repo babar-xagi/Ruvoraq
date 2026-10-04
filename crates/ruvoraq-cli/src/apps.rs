@@ -259,7 +259,7 @@ pub fn add(project: &Path, name: &str) -> Result<PathBuf, String> {
     let mut changes = Vec::new();
     for (filename, content) in [
         ("mod.rs", "mod models;\nmod routes;\nmod services;\n".to_owned()),
-        ("models.rs", "use ruvoraq::prelude::*;\n\n#[derive(Serialize)]\n#[serde(crate = \"ruvoraq::serde\")]\npub struct AppInfo {\n    pub name: &'static str,\n    pub message: &'static str,\n}\n".to_owned()),
+        ("models.rs", "use ruvoraq::prelude::*;\n\n#[schema]\n#[derive(Serialize)]\n#[serde(crate = \"ruvoraq::serde\")]\npub struct AppInfo {\n    pub name: &'static str,\n    pub message: &'static str,\n}\n".to_owned()),
         ("services.rs", format!("pub fn greeting() -> &'static str {{\n    \"Hello from {name}\"\n}}\n")),
         ("routes.rs", format!("use ruvoraq::prelude::*;\n\nuse super::{{models::AppInfo, services}};\n\n#[get(\"/{name}\")]\nasync fn index() -> AppInfo {{\n    AppInfo {{\n        name: \"{name}\",\n        message: services::greeting(),\n    }}\n}}\n")),
     ] {

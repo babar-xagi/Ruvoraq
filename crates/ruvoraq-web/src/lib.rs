@@ -2,6 +2,7 @@
 
 mod error;
 mod extract;
+mod openapi;
 mod reply;
 mod respond;
 mod state;
@@ -17,9 +18,12 @@ pub use axum::http::{HeaderMap, StatusCode};
 pub use axum::response::{IntoResponse, Response};
 pub use error::{Error, Result};
 pub use extract::{Json, Path, Query, Validate, ValidatedJson};
+#[doc(hidden)]
+pub use openapi::{DescribeSchema, SchemaProbe, operation, parameters};
 pub use reply::{Reply, accepted, bad_request, created, invalid, no_content, not_found, ok};
 #[doc(hidden)]
 pub use respond::{HandlerOutput, Respond};
+pub use schemars;
 pub use state::Inject;
 #[doc(hidden)]
 pub use state::{Dependency, RequiredService, ServiceProbe};
@@ -46,12 +50,28 @@ impl Default for Settings {
 ///
 /// Handler and response conversion currently use Axum's traits. Invalid or
 /// conflicting routes follow Axum's registration rules and may panic.
-#[derive(Default)]
 pub struct App {
     router: Router,
     settings: Settings,
     services: Services,
     required: Vec<(Dependency, &'static str, &'static str)>,
+    documentation: Vec<(&'static str, &'static str, serde_json::Value)>,
+    docs_enabled: bool,
+    route_paths: Vec<String>,
+}
+
+impl Default for App {
+    fn default() -> Self {
+        Self {
+            router: Router::new(),
+            settings: Settings::default(),
+            services: Services::default(),
+            required: Vec::new(),
+            documentation: Vec::new(),
+            docs_enabled: true,
+            route_paths: Vec::new(),
+        }
+    }
 }
 
 impl App {
@@ -112,6 +132,8 @@ impl App {
                     .into_iter()
                     .map(|dependency| (dependency, route.method, route.path)),
             );
+            app.documentation
+                .push((route.path, route.method, (route.document)()));
             app = (route.register)(app);
         }
         Ok(app)
@@ -121,7 +143,11 @@ impl App {
     ///
     /// For standalone router use, call check() first to validate attribute routes.
     /// run() and serve() perform this check automatically.
-    pub fn into_router(self) -> Router {
+    pub fn into_router(mut self) -> Router {
+        if self.docs_enabled {
+            let document = self.openapi();
+            self.router = openapi::mount(self.router, document);
+        }
         self.router
             .fallback(|| async { Error::not_found("Route not found") })
             .method_not_allowed_fallback(|| async { Error::method_not_allowed() })
@@ -146,6 +172,16 @@ impl App {
 
     /// Validate dependencies of attribute-registered routes without binding.
     pub fn check(&self) -> io::Result<()> {
+        if self.docs_enabled {
+            for path in &self.route_paths {
+                if openapi::reserved(path) {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        format!("route {path} conflicts with built-in docs; use App::docs(false)"),
+                    ));
+                }
+            }
+        }
         for &(dependency, method, path) in &self.required {
             if !self.services.contains(dependency) {
                 return Err(io::Error::new(
@@ -160,6 +196,17 @@ impl App {
         Ok(())
     }
 
+    /// Disable built-in documentation endpoints, for example in production.
+    pub fn docs(mut self, enabled: bool) -> Self {
+        self.docs_enabled = enabled;
+        self
+    }
+
+    /// Generate OpenAPI metadata for attribute-registered routes.
+    pub fn openapi(&self) -> serde_json::Value {
+        openapi::document(&self.settings.app_name, &self.documentation)
+    }
+
     pub fn settings(mut self, settings: Settings) -> Self {
         self.settings = settings;
         self
@@ -171,6 +218,7 @@ impl App {
         H: Handler<T, ()>,
         T: 'static,
     {
+        self.route_paths.push(path.to_owned());
         self.router = self.router.route(path, routing::get(handler));
         self
     }
@@ -180,6 +228,7 @@ impl App {
         H: Handler<T, ()>,
         T: 'static,
     {
+        self.route_paths.push(path.to_owned());
         self.router = self.router.route(path, routing::post(handler));
         self
     }
@@ -189,6 +238,7 @@ impl App {
         H: Handler<T, ()>,
         T: 'static,
     {
+        self.route_paths.push(path.to_owned());
         self.router = self.router.route(path, routing::put(handler));
         self
     }
@@ -198,6 +248,7 @@ impl App {
         H: Handler<T, ()>,
         T: 'static,
     {
+        self.route_paths.push(path.to_owned());
         self.router = self.router.route(path, routing::patch(handler));
         self
     }
@@ -207,6 +258,7 @@ impl App {
         H: Handler<T, ()>,
         T: 'static,
     {
+        self.route_paths.push(path.to_owned());
         self.router = self.router.route(path, routing::delete(handler));
         self
     }
@@ -239,6 +291,9 @@ impl App {
         println!("Ruvoraq");
         println!("Application: {}", self.settings.app_name);
         println!("Server:      http://{}", listener.local_addr()?);
+        if self.docs_enabled {
+            println!("Docs:        http://{}/docs", listener.local_addr()?);
+        }
         println!("Ready");
 
         axum::serve(listener, self.into_router())
@@ -278,6 +333,7 @@ pub struct RouteRegistration {
     pub path: &'static str,
     pub register: fn(App) -> App,
     pub dependencies: fn() -> Vec<Dependency>,
+    pub document: fn() -> serde_json::Value,
 }
 
 inventory::collect!(RouteRegistration);

@@ -142,6 +142,37 @@ class Server:
 
 
 def exercise(address):
+    _, document = expect(address, "OpenAPI JSON endpoint", "GET", "/openapi.json", 200)
+    assert document["openapi"] == "3.1.0" and document["info"]["title"] == "app"
+    paths = document["paths"]
+    assert "/" in paths and "/docs" not in paths and "/openapi.json" not in paths
+    assert len(paths) == 10, list(paths)
+    passed("all public API paths documented")
+    create = paths["/school/students"]["post"]
+    schema = create["requestBody"]["content"]["application/json"]["schema"]
+    assert schema["properties"]["name"]["type"] == "string"
+    assert schema["required"] == ["name"] and schema["additionalProperties"] is False
+    assert "201" in create["responses"]
+    assert "202" in paths["/billing/requests"]["post"]["responses"]
+    assert "204" in paths["/school/students/{id}"]["delete"]["responses"]
+    assert "content" not in paths["/school/students/{id}"]["delete"]["responses"]["204"]
+    passed("documented models and 201/202/204 statuses")
+    parameters = paths["/school/students"]["get"]["parameters"]
+    assert {item["name"] for item in parameters} == {"limit", "min_id"}
+    assert all(item["required"] is False for item in parameters)
+    assert next(item for item in parameters if item["name"] == "limit")["schema"]["default"] == 10
+    path_parameters = paths["/school/students/{id}"]["get"]["parameters"]
+    assert path_parameters[0]["name"] == "id" and path_parameters[0]["required"] is True
+    passed("documented query defaults and required path parameters")
+    for path, media in [("/docs", "text/html"), ("/docs/swagger-ui.css", "text/css"),
+                        ("/docs/swagger-ui-bundle.js", "application/javascript")]:
+        status, headers, body = request(address, "GET", path)
+        assert status == 200 and headers["content-type"].startswith(media)
+        assert body
+        if path == "/docs":
+            assert b'SwaggerUIBundle' in body and b'validatorUrl: null' in body
+            assert b'https://' not in body
+        passed("local interactive docs asset " + path)
     expect(address, "plain-text root", "GET", "/", 200, text="Hello")
     expect(address, "HEAD has no body", "HEAD", "/", 200, empty=True)
     expect(address, "school module registration", "GET", "/school", 200,
@@ -262,7 +293,7 @@ def main():
         assert "pub const PORT: u16 = 8000;" in source
         settings.write_text(source.replace("pub const PORT: u16 = 8000;", "pub const PORT: u16 = 0;"))
         environment = os.environ.copy()
-        environment.update(CARGO=CARGO, CARGO_NET_OFFLINE="true", CARGO_TARGET_DIR=str(APP / "target"))
+        environment.update(CARGO=CARGO, CARGO_NET_OFFLINE="true", CARGO_TARGET_DIR=str(APP / "target" / "smoke"))
         with Server(project, environment) as server:
             exercise(server.address)
             server.stop(signal.SIGINT)

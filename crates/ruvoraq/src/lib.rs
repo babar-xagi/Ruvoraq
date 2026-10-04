@@ -16,7 +16,8 @@
 
 use std::{future::Future, io};
 
-pub use ruvoraq_macros::{bootstrap, delete, get, patch, post, put};
+pub use ruvoraq_macros::{bootstrap, delete, get, patch, post, put, schema};
+pub use ruvoraq_web::schemars;
 pub use ruvoraq_web::{
     App, Error, HeaderMap, Inject, IntoResponse, Json, Path, Query, Reply, Response, Result,
     Settings, StatusCode, Validate, ValidatedJson, accepted, bad_request, created, invalid,
@@ -45,7 +46,7 @@ pub mod prelude {
         App, Deserialize, Error, HeaderMap, Inject, IntoResponse, Json, Path, Query, Reply,
         Response, Result, Serialize, Settings, StatusCode, Validate, ValidatedJson, Value,
         accepted, bad_request, created, delete, get, invalid, json, no_content, not_found, ok,
-        patch, post, put, run,
+        patch, post, put, run, schema,
     };
 }
 
@@ -53,7 +54,7 @@ pub mod prelude {
 #[doc(hidden)]
 pub mod __private {
     pub use ruvoraq_web::{
-        Dependency, HandlerOutput, RequiredService, Respond, RouteRegistration, ServiceProbe,
-        inventory,
+        Dependency, DescribeSchema, HandlerOutput, RequiredService, Respond, RouteRegistration,
+        SchemaProbe, ServiceProbe, inventory, operation, parameters,
     };
 }

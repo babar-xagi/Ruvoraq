@@ -624,6 +624,14 @@ fn invalid_route_attributes_fail_at_compile_time_with_useful_diagnostics() {
     let project = temp.0.join("invalid-routes");
     for (handler, diagnostic) in [
         (
+            "#[get(\"/\", status = 404)]\nasync fn hello() -> &'static str { \"Hello\" }",
+            "success status must be 200..299",
+        ),
+        (
+            "#[get(\"/\", unknown = 201)]\nasync fn hello() -> &'static str { \"Hello\" }",
+            "expected status = 201",
+        ),
+        (
             "#[get(\"/\")]\nfn hello() -> &'static str { \"Hello\" }",
             "route handlers must be async functions",
         ),

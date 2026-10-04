@@ -11,6 +11,10 @@ cd /home/xagi/Ruvoraq/examples/app
 ruvoraq dev
 ```
 
+Open http://127.0.0.1:8000/docs to test the APIs interactively. The specification
+is at /openapi.json. Models use #[schema], and success status metadata matches
+the response helpers. Assets are served locally.
+
 Try requests in another terminal:
 
 ```sh
@@ -51,7 +55,7 @@ python3 tests/smoke.py
 
 The test uses the installed CLI and runs servers on available local ports from a
 temporary copy. It checks status helpers, CRUD, path/query/header handling,
-validation, body limits, JSON errors, concurrent state, provider checks, CLI
+OpenAPI schemas, offline Swagger assets, validation, body limits, JSON errors, concurrent state, provider checks, CLI
 protections, SIGINT and SIGTERM. It does not edit this example's source/settings.
 
 Verify both the framework and this independent application:

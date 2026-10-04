@@ -34,7 +34,7 @@ async fn students(
     service.list(filter.limit, filter.min_id)
 }
 
-#[post("/school/students")]
+#[post("/school/students", status = 201)]
 async fn create_student(
     service: Inject<SchoolService>,
     ValidatedJson(input): ValidatedJson<CreateStudent>,
@@ -78,7 +78,7 @@ async fn update_student(
     service.rename(id, input.name)
 }
 
-#[delete("/school/students/{id}")]
+#[delete("/school/students/{id}", status = 204)]
 async fn delete_student(service: Inject<SchoolService>, Path(id): Path<u64>) -> Result<Response> {
     service.delete(id)?;
     Ok(no_content())
