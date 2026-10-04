@@ -1,18 +1,19 @@
 [package]
-name = "app"
+name = "sqlite-api"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.85"
 autobins = false
 
 [[bin]]
-name = "app"
+name = "sqlite-api"
 path = "src/settings.rs"
 
 [package.metadata.ruvoraq]
 project = true
 
 [dependencies.ruvoraq]
+features = ["sqlite"]
 path = "/home/xagi/Ruvoraq/crates/ruvoraq"
 
 [dependencies.serde]

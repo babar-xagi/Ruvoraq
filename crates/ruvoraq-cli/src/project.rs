@@ -154,7 +154,7 @@ pub fn create(parent: &Path, name: &str) -> Result<PathBuf, String> {
         created_src = true;
 
         let manifest = format!(
-            "[package]\nname = \"{name}\"\nversion = \"0.1.0\"\nedition = \"2024\"\nautobins = false\n\n\
+            "[package]\nname = \"{name}\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = \"1.85\"\nautobins = false\n\n\
              [[bin]]\nname = \"{name}\"\npath = \"src/settings.rs\"\n\n\
              [package.metadata.ruvoraq]\nproject = true\n\n\
              [dependencies.ruvoraq]\n{dependency}\n\

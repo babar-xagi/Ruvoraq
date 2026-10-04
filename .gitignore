@@ -27,3 +27,13 @@ rustc-ice-*.txt
 .env
 .env.*
 !.env.example
+
+# Local SQLite databases and journal files.
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.sqlite-journal
+
+# Python smoke-test bytecode.
+__pycache__/
+*.pyc

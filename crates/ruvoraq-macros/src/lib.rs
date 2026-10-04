@@ -348,14 +348,40 @@ pub fn delete(attribute: TokenStream, item: TokenStream) -> TokenStream {
 /// The file must provide a settings() function returning ruvoraq::Settings.
 /// Optionally use bootstrap!(configure) with a function accepting and returning App
 /// to register shared services before startup. Hooks may also return io::Result<App>.
+/// Use bootstrap!(async configure) for an async App or io::Result<App> hook.
 /// Loads optional local .env and typed environment overrides before the hook.
+struct BootstrapArgs {
+    asynchronous: bool,
+    path: syn::Path,
+}
+impl syn::parse::Parse for BootstrapArgs {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let asynchronous = if input.peek(syn::Token![async]) {
+            input.parse::<syn::Token![async]>()?;
+            true
+        } else {
+            false
+        };
+        Ok(Self {
+            asynchronous,
+            path: input.parse()?,
+        })
+    }
+}
+
 #[proc_macro]
 pub fn bootstrap(input: TokenStream) -> TokenStream {
     let configure = if input.is_empty() {
         quote! {}
     } else {
-        let path = parse_macro_input!(input as syn::Path);
-        quote! { use ::ruvoraq::__private::ConfiguredApp as _; let app = #path(app).configured()?; }
+        let args = parse_macro_input!(input as BootstrapArgs);
+        let path = args.path;
+        let call = if args.asynchronous {
+            quote! {#path(app).await}
+        } else {
+            quote! {#path(app)}
+        };
+        quote! { use ::ruvoraq::__private::ConfiguredApp as _; let app = (#call).configured()?; }
     };
 
     quote! {

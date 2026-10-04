@@ -7,8 +7,15 @@ command. Experiment 003 added typed APIs and simple response helpers.
 Experiment 004 added optional app modules with `ruvoraq add app <name>`.
 Experiment 005 added shared services and typed injection with `Inject<T>`.
 Experiment 006 added automatic OpenAPI and interactive /docs.
-**Experiment 007 adds typed environment configuration and optional .env loading.**
+Experiment 007 added typed environment configuration and optional .env loading.
+**Experiment 008 adds optional SQLite persistence and async configuration hooks.**
 Small projects still start with exactly three files.
+
+## Documentation
+
+- 📘 [User guide](doc/user_guid.md): setup, routes, configuration, services, API docs, and SQLite.
+- 🛠️ [Developer guide](doc/developer_guid.md): architecture, contribution workflow, and verification.
+- 🧭 [Project tracker](project.md): completed experiments, local work, remaining features, and future goals.
 
 ## Quick start
 
@@ -119,6 +126,78 @@ device names are rejected. Paths are not accepted. Existing empty directories
 are accepted; non-empty directories (including hidden entries), files and
 symlink targets are refused. Errors go to stderr with exit code 1. Files use
 exclusive creation; failures attempt to remove only entries created by that call.
+
+## SQLite persistence (Experiment 008)
+
+Database support is opt-in. The default three-file app and examples/app do not
+enable SQLite. Enable it only in an application's Cargo.toml:
+
+```toml
+[dependencies.ruvoraq]
+path = "/home/xagi/Ruvoraq/crates/ruvoraq"
+features = ["sqlite"]
+```
+
+Database and the SQLx adapter are then available from the prelude. Construct
+and inject the pool in an async settings hook:
+
+```rust
+use ruvoraq::{App, Database};
+
+async fn configure(app: App) -> std::io::Result<App> {
+    let url: String = app.env().get("DATABASE_URL")?;
+    let db = Database::connect(&url).await?;
+    Ok(app.provide(db))
+}
+ruvoraq::bootstrap!(async configure);
+```
+
+Existing synchronous and fallible hooks stay compatible. Configuration and
+database initialization finish before the server binds. A file URL such as
+sqlite://notes.sqlite creates a missing file; its parent directory must exist.
+Use sqlite::memory: for an ephemeral database.
+
+Handlers use Inject<Database> and parameterized queries with bind():
+
+```rust
+use ruvoraq::prelude::*;
+
+#[get("/count")]
+async fn count(db: ruvoraq::Inject<ruvoraq::Database>) -> ruvoraq::Result<ruvoraq::Value> {
+    let (count,): (i64,) = ruvoraq::sqlx::query_as("SELECT COUNT(*) FROM notes")
+        .fetch_one(db.pool()).await.map_err(|_| ruvoraq::Error::internal())?;
+    Ok(ruvoraq::json!({"count": count}))
+}
+```
+
+The example initializes its notes table in settings.rs. Do not concatenate
+request values into SQL. The initial SQLite pool uses one connection, so memory
+databases remain consistent and concurrent writes queue through the same pool.
+Foreign keys are enabled, and connection acquisition / busy waits are bounded.
+Database::begin() returns a SQLx transaction with commit(), rollback(), and
+rollback on drop. Database::close() closes the shared pool; cloning a Database
+shares the existing pool.
+
+The separate examples/sqlite-api example provides persistent note CRUD, schema
+documentation and an async configure hook. Data survives server restarts.
+Its CREATE TABLE IF NOT EXISTS is initial schema setup, not a versioned migration
+system. PostgreSQL, an ORM, model generators, migrations and automatic database
+shutdown hooks are deferred. SQLx 0.8.6 is used for compatibility with this
+workspace's Rust version; driver APIs remain available as an explicit escape hatch.
+Connection errors redact URLs; map query errors to Error::internal() before
+returning them from HTTP handlers, as the example does.
+
+```sh
+cd examples/sqlite-api
+ruvoraq dev
+# Test in the browser at http://127.0.0.1:8000/docs
+# Or run the repeatable test:
+python3 tests/smoke.py
+```
+
+The live test reuses HTTP/process helpers from examples/app/tests/smoke.py.
+SQLite files and journals are ignored by Git. No database is created by new,
+and no existing example has been replaced.
 
 ## Configuration (Experiment 007)
 
@@ -563,7 +642,7 @@ non-error statuses become 500.
 
 ## Web core and architecture
 
-The workspace contains five crates. Generated apps such as `examples/app` are independent workspaces:
+The workspace contains six crates. Generated apps such as `examples/app` are independent workspaces:
 
 | Crate | Responsibility |
 | --- | --- |
@@ -572,6 +651,7 @@ The workspace contains five crates. Generated apps such as `examples/app` are in
 | `ruvoraq-web` | HTTP adapter, typed extraction, errors, routes and server lifecycle |
 | `ruvoraq-cli` | Project generation and Cargo development launcher |
 | `ruvoraq-config` | Typed configuration snapshots and optional dotenv parsing |
+| `ruvoraq-db` | Optional SQLite pool and SQLx adapter |
 
 `App` supports `.get()`, `.post()`, `.put()`, `.patch()`, and `.delete()`.
 Methods can share a route path. Axum supplies handler traits, response conversion
@@ -593,8 +673,9 @@ The server drains active requests on Ctrl+C (Unix/Windows) or SIGTERM (Unix).
 for tests and lifecycle integrations. A stuck handler can delay shutdown; a
 forced-shutdown timeout is deferred.
 
-There are no database, auth, AI, automatic dependency construction, OpenAPI,
-validation-derive or hot-reload features in this experiment.
+Authentication, AI, automatic dependency construction, validation derives, and
+hot reload remain future work. OpenAPI and optional SQLite persistence are now
+implemented; see the documentation guides and project tracker.
 
 ## Verification
 

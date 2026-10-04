@@ -1,0 +1,226 @@
+# 🧭 Ruvoraq project tracker
+
+Ruvoraq aims to make Rust backend development approachable through simple route
+handlers, explicit application composition, and optional batteries. Longer-term
+goals include production operations and provider-independent AI capabilities.
+
+This tracker describes repository work as of **2026-10-04**. Future phases are
+proposals, not delivered features or promised release dates.
+
+## 📍 Current position
+
+- Version: 0.1.0, experimental local development.
+- Latest pushed work: Experiment 007, typed configuration and dotenv loading.
+- Last pushed commit: 75181c1f7495c8038ce55f51b5b097ccf1cdb1fb.
+- Experiment 008: SQLite and async setup implemented and verified locally.
+- Experiment 008 and this documentation update: not yet committed or pushed.
+- Framework crates: not published to crates.io.
+- Current focus: document the implemented API before the next push.
+
+The current foundation is functional and tested. It is not yet a complete
+production platform with authentication, migrations, operations tooling, or AI.
+
+## ✅ Completed experiments
+
+| Experiment | Delivered outcome | Repository status |
+| --- | --- | --- |
+| 001 — Minimal CLI | Help/version, safe name validation, protected three-file project generation. | Pushed |
+| 002 — Web startup | Route attributes, automatic registration, settings bootstrap, server lifecycle, dev command. | Pushed |
+| 003 — Typed APIs | Typed extraction, explicit validation, JSON models, response helpers, error envelopes. | Pushed |
+| 004 — Modules | Optional application modules and conservative automatic wiring. | Pushed |
+| 005 — Services | Per-application shared services and typed Inject<T>. | Pushed |
+| 006 — API documentation | Automatic OpenAPI 3.1, offline Swagger UI, API testing UI and screenshot. | Pushed |
+| 007 — Configuration | Typed environment snapshots, optional dotenv, built-in settings overrides. | Pushed |
+| 008 — SQLite | Optional database feature, bound SQL, transactions, async setup, durable notes example. | Local; verified; awaiting commit/push |
+
+These experiments extend one framework; their numbers record actual work.
+Earlier experiment limitations should not be read as current feature limits.
+
+## 🧩 Implemented capabilities
+
+### Application experience
+
+- [x] Exactly three files in a newly generated project.
+- [x] Route-focused main.rs and composition-focused settings.rs.
+- [x] Automatic attributed route registration.
+- [x] GET, POST, PUT, PATCH, and DELETE attributes.
+- [x] Configurable listening address and development launcher.
+- [x] Ctrl+C and Unix SIGTERM graceful shutdown.
+- [x] Optional app modules without forcing them into small applications.
+
+### HTTP and application state
+
+- [x] Path, query, JSON, validated JSON, and header access.
+- [x] Automatic JSON serialization for attributed model responses.
+- [x] Named success helpers and consistent framework errors.
+- [x] Explicit validation rules and JSON body limits.
+- [x] Shared typed services isolated per App.
+- [x] Missing attributed-handler providers checked before binding.
+
+### Documentation and configuration
+
+- [x] OpenAPI schemas, parameters, bodies, and response metadata.
+- [x] Offline Swagger UI and local assets.
+- [x] Optional documentation endpoints with conflict checks.
+- [x] Typed configuration without global environment mutation.
+- [x] Process-over-dotenv precedence and redacted parse diagnostics.
+- [x] Detailed [user](doc/user_guid.md) and [developer](doc/developer_guid.md) guides.
+
+### Database foundation
+
+- [x] Opt-in SQLite facade feature.
+- [x] SQLx pool and parameterized runtime queries.
+- [x] Transaction commit and rollback.
+- [x] Foreign keys and redacted connection failures.
+- [x] Async application configuration hook.
+- [x] Persistent notes CRUD example with restart tests.
+- [ ] Versioned schema migrations.
+- [ ] Database and migration CLI commands.
+- [ ] PostgreSQL adapter and integration coverage.
+- [ ] ORM or high-level model/repository generation.
+
+## 🏗️ Repository structure
+
+```text
+Ruvoraq/
+├── Cargo.toml / Cargo.lock
+├── README.md
+├── project.md
+├── doc/
+│   ├── user_guid.md
+│   └── developer_guid.md
+├── docs/images/swagger-ui.jpg
+├── crates/
+│   ├── ruvoraq/
+│   ├── ruvoraq-cli/
+│   ├── ruvoraq-config/
+│   ├── ruvoraq-db/
+│   ├── ruvoraq-macros/
+│   └── ruvoraq-web/
+└── examples/
+    ├── app/
+    └── sqlite-api/
+```
+
+The singular doc/ directory contains the requested written guides. The existing
+plural docs/ directory holds the captured Swagger image.
+
+The default facade uses the web/configuration foundation. SQLite is optional
+for applications, although workspace checks include the database crate.
+The framework currently uses Axum/Tokio for HTTP, Schemars for schema generation,
+and SQLx for SQLite.
+
+## 🧪 Verification evidence
+
+Experiment 008 passed workspace build, format, check, test, and strict Clippy
+checks, including all features. Both independent examples were also checked.
+
+| Evidence | Result |
+| --- | --- |
+| Framework test count | 66 passing, including the documentation test |
+| General application live checks | 68 passing |
+| SQLite application live checks | 23 passing |
+| Combined live checks | 91 passing |
+| Default facade dependency graph | SQLx absent without sqlite feature |
+| Database persistence | Verified through close/reopen and server restarts |
+| Secret handling | Configuration and connection failures tested for redaction |
+
+These counts describe the recorded implementation verification. Documentation
+edits receive their own link and example checks rather than implying every test
+was rerun after each prose change.
+
+Rust 1.85 is the declared minimum; verification used the installed Rust 1.99.0
+toolchain. Dependency MSRV metadata was checked, but a real 1.85 build remains
+unverified.
+
+## 🚧 Current limitations
+
+- dev builds and runs; file watching and hot reload are not implemented.
+- SQLite uses one connection; PostgreSQL, migrations, and pool tuning are pending.
+- Example school/billing state is in memory; billing is not payment processing.
+- Custom validation rules are not automatically translated into OpenAPI.
+- Custom extractors, aliases, and dynamic response types have documentation limits.
+- Manual builder routes need explicit response wrappers and are not auto-documented.
+- No automatic dependency constructor graph or request-scoped providers.
+- No authentication, authorization, admin, cache, background jobs, or AI APIs.
+- No established public-release compatibility policy or published crates.
+- Graceful shutdown has no forced deadline for permanently blocked handlers.
+
+## 🗺️ Proposed next phases
+
+### Experiment 009 — Versioned SQLite migrations
+
+Goal: evolve a database schema safely and repeatably.
+
+- [ ] Define ordered migration files and a schema-version table.
+- [ ] Apply pending migrations without reapplying completed ones.
+- [ ] Define transaction and failed-migration recovery behavior.
+- [ ] Add a small migration CLI workflow with clear errors.
+- [ ] Test fresh databases, repeated runs, upgrades, and failures.
+- [ ] Convert the notes example from startup DDL to migrations.
+- [ ] Document the workflow before release.
+
+The exact command names and interfaces remain undecided.
+
+### Experiment 010 — Optional PostgreSQL
+
+Goal: support a server database while retaining a minimal default application.
+
+- [ ] Decide shared database abstractions versus explicit backend types.
+- [ ] Add optional PostgreSQL connection/configuration support.
+- [ ] Test binding, transactions, migrations, and connection failures on a real server.
+- [ ] Document backend differences rather than hiding them.
+- [ ] Keep SQLx backend dependencies opt-in.
+
+### Later foundation work
+
+- [ ] Request logging, request identifiers, and useful tracing.
+- [ ] Explicit middleware configuration, CORS, and request timeouts.
+- [ ] A documented application testing interface.
+- [ ] Shutdown deadlines and operational health patterns.
+- [ ] Automated CI with default/all-feature checks and minimum Rust coverage.
+- [ ] Reproducible packaging and a public API/versioning policy.
+- [ ] Configuration profiles if real application needs justify them.
+
+### Optional application batteries
+
+- [ ] Authentication and authorization with tested secure defaults.
+- [ ] Database-backed services and reusable repository patterns.
+- [ ] Cache, background jobs, and scheduling.
+- [ ] Admin capabilities and WebSocket support where required.
+
+### Longer-term AI capabilities
+
+- [ ] Provider-independent model interfaces.
+- [ ] Streaming and structured outputs.
+- [ ] Explicit tool execution and agent composition.
+- [ ] Embeddings, vector-store adapters, and retrieval workflows.
+- [ ] Local-model integration where feasible.
+
+These are product goals. No AI providers, agents, RAG system, or enterprise
+features are implemented by the current experiments.
+
+## 🎯 Principles for future decisions
+
+1. Keep new applications minimal; add features deliberately.
+2. Keep composition visible in settings.rs.
+3. Preserve Rust's explicit types and understandable compile-time behavior.
+4. Make optional capabilities available without forcing their dependencies.
+5. Prefer verified behavior and clear errors over broad untested APIs.
+6. Keep documentation examples aligned with executable examples.
+
+## 📦 Before the next push
+
+- [x] Implement and verify the local SQLite phase.
+- [x] Create user and developer guides and this progress tracker.
+- [ ] Review the final local diff.
+- [ ] Commit the selected changes when requested.
+- [ ] Push when requested.
+- [ ] Update this tracker to record the new pushed commit.
+
+Before a first public release, verify the minimum Rust toolchain, establish CI,
+review the public API, and resolve packaging and package ownership. Keep those
+release tasks separate from completing an individual experiment.
+
+Update this file whenever scope, verification evidence, or repository status
+changes. Mark planned work complete only after implementation and verification.

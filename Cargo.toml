@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/ruvoraq", "crates/ruvoraq-web", "crates/ruvoraq-macros", "crates/ruvoraq-cli", "crates/ruvoraq-config"]
+members = ["crates/ruvoraq", "crates/ruvoraq-web", "crates/ruvoraq-macros", "crates/ruvoraq-cli", "crates/ruvoraq-config", "crates/ruvoraq-db"]
 resolver = "3"
 
 [workspace.package]
