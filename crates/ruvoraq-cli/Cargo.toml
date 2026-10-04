@@ -1,0 +1,12 @@
+[package]
+name = "ruvoraq-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Experiment 001: minimal Ruvoraq project generator"
+publish = false
+
+[[bin]]
+name = "ruvoraq"
+path = "src/main.rs"
