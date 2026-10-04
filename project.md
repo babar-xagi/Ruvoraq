@@ -9,7 +9,7 @@ proposals, not delivered features or promised release dates.
 
 ## 📍 Current position
 
-- Version: 0.1.0, experimental local development.
+- Version: 0.1.0, published experimental release.
 - Current implementation: Experiment 010, optional PostgreSQL support and consolidated testing.
 - Delivery includes Experiment 010 and the fresh comprehensive example; see Git history.
 - One runnable example: school/billing APIs with SQLite or PostgreSQL notes.
