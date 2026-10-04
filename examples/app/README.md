@@ -2,7 +2,8 @@
 
 Generated with the installed Experiment 005 CLI, then expanded with school and
 billing modules. main.rs remains the original hello handler; settings.rs owns
-configuration and provider registration.
+configuration and provider registration. Experiment 007 adds optional environment
+overrides and a fallible configure hook.
 
 Run inside WSL:
 
@@ -10,6 +11,18 @@ Run inside WSL:
 cd /home/xagi/Ruvoraq/examples/app
 ruvoraq dev
 ```
+
+Optional file configuration (not needed for the defaults):
+
+```sh
+cp .env.example .env
+# Edit .env, or override individual values:
+RUVORAQ_PORT=9000 SCHOOL_GREETING="Hello from configuration" ruvoraq dev
+```
+
+Process variables override .env and settings.rs. RUVORAQ_DOCS=false disables
+the docs endpoints. SCHOOL_GREETING demonstrates custom service configuration.
+Do not store real configuration in .env.example; .env is ignored by Git.
 
 Open http://127.0.0.1:8000/docs to test the APIs interactively. The specification
 is at /openapi.json. Models use #[schema], and success status metadata matches
@@ -56,7 +69,7 @@ python3 tests/smoke.py
 The test uses the installed CLI and runs servers on available local ports from a
 temporary copy. It checks status helpers, CRUD, path/query/header handling,
 OpenAPI schemas, offline Swagger assets, validation, body limits, JSON errors, concurrent state, provider checks, CLI
-protections, SIGINT and SIGTERM. It does not edit this example's source/settings.
+protections, dotenv/process precedence, redacted startup errors, SIGINT and SIGTERM. It does not edit this example's source/settings.
 
 Verify both the framework and this independent application:
 

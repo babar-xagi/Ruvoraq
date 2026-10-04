@@ -613,6 +613,7 @@ fn cargo_for_project(project: &Path, command: &str) -> Output {
         .arg(project.join("Cargo.toml"))
         .arg("--target-dir")
         .arg(generated_target_dir())
+        .current_dir(project)
         .output()
         .unwrap()
 }
@@ -1058,4 +1059,48 @@ async fn hello(greeting: Inject<Greeting>) -> Value {
         stderr.contains("App::provide") && stderr.contains("settings.rs"),
         "{stderr}"
     );
+}
+
+#[test]
+fn generated_bootstrap_reports_configuration_errors_before_startup() {
+    let temp = TempDir::new();
+    assert_success(&temp.run(&["new", "configured-app"]));
+    let project = temp.0.join("configured-app");
+    for (content, name, secret) in [
+        (
+            "RUVORAQ_PORT=private-port\n",
+            "RUVORAQ_PORT",
+            "private-port",
+        ),
+        (
+            "PASSWORD=\"private-password\n",
+            "configuration file",
+            "private-password",
+        ),
+    ] {
+        fs::write(project.join(".env"), content).unwrap();
+        let output = cargo_for_project(&project, "run");
+        assert!(!output.status.success());
+        assert!(output.stdout.is_empty());
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(stderr.contains(name), "{stderr}");
+        assert!(!stderr.contains(secret), "{stderr}");
+    }
+    fs::remove_file(project.join(".env")).unwrap();
+    let settings_path = project.join("src/settings.rs");
+    let settings = fs::read_to_string(&settings_path).unwrap().replace(
+        "ruvoraq::bootstrap!();",
+        r#"
+fn configure(app: ruvoraq::App) -> std::io::Result<ruvoraq::App> {
+    let _limit: u16 = app.env().get("RUVORAQ_TEST_REQUIRED_LIMIT")?;
+    Ok(app)
+}
+ruvoraq::bootstrap!(configure);
+"#,
+    );
+    fs::write(settings_path, settings).unwrap();
+    let output = cargo_for_project(&project, "run");
+    assert!(!output.status.success());
+    assert!(output.stdout.is_empty());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("RUVORAQ_TEST_REQUIRED_LIMIT"));
 }

@@ -347,14 +347,15 @@ pub fn delete(attribute: TokenStream, item: TokenStream) -> TokenStream {
 /// Invoke once at the root of settings.rs, which Cargo uses as the binary target.
 /// The file must provide a settings() function returning ruvoraq::Settings.
 /// Optionally use bootstrap!(configure) with a function accepting and returning App
-/// to register shared services before startup.
+/// to register shared services before startup. Hooks may also return io::Result<App>.
+/// Loads optional local .env and typed environment overrides before the hook.
 #[proc_macro]
 pub fn bootstrap(input: TokenStream) -> TokenStream {
     let configure = if input.is_empty() {
         quote! {}
     } else {
         let path = parse_macro_input!(input as syn::Path);
-        quote! { let app = #path(app); }
+        quote! { use ::ruvoraq::__private::ConfiguredApp as _; let app = #path(app).configured()?; }
     };
 
     quote! {
@@ -363,7 +364,8 @@ pub fn bootstrap(input: TokenStream) -> TokenStream {
 
         fn main() -> ::std::io::Result<()> {
             ::ruvoraq::run(async {
-                let app = ::ruvoraq::App::auto()?.settings(settings());
+                let env = ::ruvoraq::Env::load()?;
+                let app = ::ruvoraq::App::auto()?.settings(settings()).environment(env)?;
                 #configure
                 app.run().await
             })

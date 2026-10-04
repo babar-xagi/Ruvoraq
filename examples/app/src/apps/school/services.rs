@@ -16,13 +16,34 @@ struct Store {
 }
 
 // No Clone implementation: every handler shares this one service instance.
-#[derive(Default)]
 pub struct SchoolService {
+    greeting: String,
     store: Mutex<Store>,
     visits: AtomicUsize,
 }
 
+impl Default for SchoolService {
+    fn default() -> Self {
+        Self {
+            greeting: "School API".into(),
+            store: Mutex::default(),
+            visits: AtomicUsize::default(),
+        }
+    }
+}
+
 impl SchoolService {
+    pub fn with_greeting(greeting: String) -> Self {
+        Self {
+            greeting,
+            ..Self::default()
+        }
+    }
+
+    pub fn greeting(&self) -> &str {
+        &self.greeting
+    }
+
     pub fn visit(&self) -> usize {
         self.visits.fetch_add(1, Ordering::SeqCst) + 1
     }

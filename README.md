@@ -6,7 +6,8 @@ automatic registration, server startup, settings, graceful shutdown and a develo
 command. Experiment 003 added typed APIs and simple response helpers.
 Experiment 004 added optional app modules with `ruvoraq add app <name>`.
 Experiment 005 added shared services and typed injection with `Inject<T>`.
-**Experiment 006 adds automatic OpenAPI and interactive /docs.**
+Experiment 006 added automatic OpenAPI and interactive /docs.
+**Experiment 007 adds typed environment configuration and optional .env loading.**
 Small projects still start with exactly three files.
 
 ## Quick start
@@ -118,6 +119,95 @@ device names are rejected. Paths are not accepted. Existing empty directories
 are accepted; non-empty directories (including hidden entries), files and
 symlink targets are refused. Errors go to stderr with exit code 1. Files use
 exclusive creation; failures attempt to remove only entries created by that call.
+
+## Configuration (Experiment 007)
+
+The bootstrap loads configuration before startup. Precedence is:
+
+```text
+process environment > local .env > settings.rs defaults
+```
+
+No changes to main.rs are needed. The generator still creates exactly three
+files; .env is optional and is never generated automatically.
+
+| Variable | Type | Default |
+| --- | --- | --- |
+| RUVORAQ_APP_NAME | Non-empty text without control characters | APP_NAME in settings.rs |
+| RUVORAQ_HOST | IPv4 or IPv6 address, without a port | HOST in settings.rs |
+| RUVORAQ_PORT | Integer 0–65535 | PORT in settings.rs |
+| RUVORAQ_DOCS | true or false | true |
+
+For example:
+
+```sh
+RUVORAQ_PORT=9000 ruvoraq dev
+RUVORAQ_DOCS=false ruvoraq dev
+```
+
+Or create .env in the application directory:
+
+```dotenv
+RUVORAQ_APP_NAME="My API"
+RUVORAQ_HOST=127.0.0.1
+RUVORAQ_PORT=9000
+RUVORAQ_DOCS=true
+```
+
+Only the current directory's .env is loaded; parent directories are not searched.
+Missing files are allowed. Invalid syntax, duplicate names and unreadable files
+fail before the server starts. Parsing uses dotenvy for comments, quoting, export
+and interpolation; substitution follows dotenvy's rules at load time.
+Loading does not call set_var or change the global process environment.
+Boolean and numeric parsing is strict; invalid or empty typed values never
+silently fall back to defaults. Port 0 still requests an available local port.
+
+Use the same snapshot for custom configuration in settings.rs:
+
+```rust
+fn configure(app: ruvoraq::App) -> std::io::Result<ruvoraq::App> {
+    let greeting = app.env().get_or("SCHOOL_GREETING", "School API".to_owned())?;
+    // Construct this service as usual in your optional school module.
+    Ok(app.provide(apps::school::services::SchoolService::with_greeting(greeting)))
+}
+ruvoraq::bootstrap!(configure);
+```
+
+The example application's SchoolService implements with_greeting(). The configure
+hook can return either App (existing code stays compatible) or io::Result<App>.
+It runs after environment overrides; explicit changes in the hook are final.
+
+The prelude exports Env with typed methods:
+
+```rust
+let env = ruvoraq::Env::load()?;
+let required: String = env.get("DATABASE_URL")?;
+let optional: Option<u16> = env.optional("CUSTOM_PORT")?;
+let retries: usize = env.get_or("RETRIES", 3)?;
+```
+
+These variables are examples of custom configuration, not database integration.
+A bootstrapped app also provides Inject<Env> automatically when handlers need
+configuration. Prefer constructing services in settings.rs for application logic.
+Env is a snapshot: changing a file or process variable later does not update an
+already running app.
+
+Errors report the variable name and expected type without printing the supplied
+value or parser input. Env's Debug output contains only entry counts; it does
+not print variable names or values. Applications can still deliberately log values.
+
+Explicit App builders opt in with
+`App::new().settings(defaults).environment(Env::load()?)?`.
+Settings::with_env(&env) applies just the identity/address overrides.
+Env::from_file(path) requires a named file, load_from(directory) reads an optional
+.env in that exact directory, and from_values(...) creates an isolated snapshot
+for tests. None of these methods mutates process variables.
+
+In the repository example, copy examples/app/.env.example to examples/app/.env
+only when you want file-based settings. Actual .env files are ignored by Git;
+.env.example files can be tracked. New independent projects should configure
+their own ignore rules. Profiles, automatic config-struct derives, live reloading
+and database integration are deferred.
 
 ## Interactive API docs (Experiment 006)
 
@@ -429,7 +519,8 @@ impl Validate for CreateUser {
 Replace `Json(input): Json<CreateUser>` with
 `ValidatedJson(input): ValidatedJson<CreateUser>` in the handler.
 A JSON body extractor must be the **last handler argument**.
-Validation is explicit; there is no validation derive or generated API schema yet.
+Validation is explicit; there is no validation derive. Add #[schema] for generated
+API field schemas as described in Experiment 006.
 
 Put the typed handlers above in your generated application, then run:
 
@@ -472,7 +563,7 @@ non-error statuses become 500.
 
 ## Web core and architecture
 
-The workspace contains four crates. Generated apps such as `examples/app` are independent workspaces:
+The workspace contains five crates. Generated apps such as `examples/app` are independent workspaces:
 
 | Crate | Responsibility |
 | --- | --- |
@@ -480,6 +571,7 @@ The workspace contains four crates. Generated apps such as `examples/app` are in
 | `ruvoraq-macros` | Route attributes and settings bootstrap |
 | `ruvoraq-web` | HTTP adapter, typed extraction, errors, routes and server lifecycle |
 | `ruvoraq-cli` | Project generation and Cargo development launcher |
+| `ruvoraq-config` | Typed configuration snapshots and optional dotenv parsing |
 
 `App` supports `.get()`, `.post()`, `.put()`, `.patch()`, and `.delete()`.
 Methods can share a route path. Axum supplies handler traits, response conversion

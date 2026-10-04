@@ -8,8 +8,8 @@ use super::{
 type School = Inject<SchoolService>;
 
 #[get("/school")]
-async fn index() -> Value {
-    json!({"name": "school", "message": "School API"})
+async fn index(service: Inject<SchoolService>) -> Value {
+    json!({"name": "school", "message": service.greeting()})
 }
 
 #[get("/school/visits")]

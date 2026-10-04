@@ -8,6 +8,7 @@ description = "Ruvoraq HTTP adapter and typed API"
 publish = false
 
 [dependencies]
+ruvoraq-config = { path = "../ruvoraq-config" }
 axum.workspace = true
 inventory.workspace = true
 tokio.workspace = true

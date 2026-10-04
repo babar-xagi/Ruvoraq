@@ -293,6 +293,8 @@ def main():
         assert "pub const PORT: u16 = 8000;" in source
         settings.write_text(source.replace("pub const PORT: u16 = 8000;", "pub const PORT: u16 = 0;"))
         environment = os.environ.copy()
+        for name in ["RUVORAQ_HOST", "RUVORAQ_PORT", "RUVORAQ_APP_NAME", "RUVORAQ_DOCS", "SCHOOL_GREETING"]:
+            environment.pop(name, None)
         environment.update(CARGO=CARGO, CARGO_NET_OFFLINE="true", CARGO_TARGET_DIR=str(APP / "target" / "smoke"))
         with Server(project, environment) as server:
             exercise(server.address)
@@ -302,8 +304,41 @@ def main():
             expect(server.address, "billing is scoped to the new app instance", "GET", "/billing", 200, expected={"accepted": 0})
             server.stop(signal.SIGTERM)
 
+        dotenv = project / ".env"
+        dotenv.write_text('RUVORAQ_APP_NAME="Configured app"\nRUVORAQ_HOST=127.0.0.1\nRUVORAQ_PORT=0\nRUVORAQ_DOCS=false\nSCHOOL_GREETING="Hello from dotenv"\n')
+        with Server(project, environment) as server:
+            assert "Application: Configured app" in server.lines
+            passed("dotenv app name and ephemeral port startup")
+            expect(server.address, "fallible configure hook uses the loaded dotenv snapshot", "GET", "/school", 200,
+                   expected={"name": "school", "message": "Hello from dotenv"})
+            expect(server.address, "dotenv disables docs", "GET", "/docs", 404, error="not_found")
+            expect(server.address, "dotenv disables the OpenAPI endpoint", "GET", "/openapi.json", 404, error="not_found")
+            server.stop(signal.SIGTERM)
+        overrides = dict(environment, RUVORAQ_APP_NAME="Process app", RUVORAQ_DOCS="true", SCHOOL_GREETING="Hello from process")
+        with Server(project, overrides) as server:
+            assert "Application: Process app" in server.lines
+            passed("process environment overrides dotenv app name")
+            expect(server.address, "process variables override dotenv service configuration", "GET", "/school", 200,
+                   expected={"name": "school", "message": "Hello from process"})
+            _, document = expect(server.address, "process override enables OpenAPI", "GET", "/openapi.json", 200)
+            assert document["info"]["title"] == "Process app"
+            passed("OpenAPI title uses the effective configuration")
+            server.stop(signal.SIGTERM)
+        for content, variable, secret in [
+            ("RUVORAQ_PORT=secret-port\n", "RUVORAQ_PORT", "secret-port"),
+            ("RUVORAQ_DOCS=secret-bool\n", "RUVORAQ_DOCS", "secret-bool"),
+            ('PASSWORD="private-secret\n', "configuration file", "private-secret"),
+        ]:
+            dotenv.write_text(content)
+            result = subprocess.run([CLI, "dev"], cwd=project, env=environment,
+                                    capture_output=True, text=True, timeout=60)
+            assert result.returncode != 0 and not result.stdout, result
+            assert variable in result.stderr and secret not in result.stderr, result.stderr
+            passed("redacted configuration failure before startup: " + variable)
+        dotenv.unlink()
+
         configured = settings.read_text()
-        provider = ".provide(SchoolService::default())"
+        provider = ".provide(SchoolService::with_greeting(greeting))"
         assert configured.count(provider) == 1
         settings.write_text(configured.replace(provider, ""))
         result = subprocess.run([CLI, "dev"], cwd=project, env=environment,

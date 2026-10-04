@@ -8,6 +8,7 @@ description = "Ruvoraq public API"
 publish = false
 
 [dependencies]
+ruvoraq-config = { path = "../ruvoraq-config" }
 ruvoraq-web = { path = "../ruvoraq-web" }
 ruvoraq-macros = { path = "../ruvoraq-macros" }
 tokio.workspace = true

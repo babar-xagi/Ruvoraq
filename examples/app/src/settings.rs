@@ -17,9 +17,13 @@ pub fn settings() -> Settings {
     }
 }
 
-fn configure(app: App) -> App {
-    app.provide(SchoolService::default())
-        .provide_shared(Arc::new(BillingService::default()))
+fn configure(app: App) -> std::io::Result<App> {
+    let greeting = app
+        .env()
+        .get_or("SCHOOL_GREETING", "School API".to_owned())?;
+    Ok(app
+        .provide(SchoolService::with_greeting(greeting))
+        .provide_shared(Arc::new(BillingService::default())))
 }
 
 ruvoraq::bootstrap!(configure);

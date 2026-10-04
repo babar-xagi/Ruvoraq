@@ -71,6 +71,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc652a48c352aef3ea3aed32080501cf3ef6ed5da78602a020c991775b0aff04"
 
 [[package]]
+name = "dotenvy"
+version = "0.15.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1aaf95b3e5c8f23aa320147307562d361db0ae0d51242340f558153b4eb2439b"
+
+[[package]]
 name = "dyn-clone"
 version = "1.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -341,6 +347,7 @@ name = "ruvoraq"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "ruvoraq-config",
  "ruvoraq-macros",
  "ruvoraq-web",
  "serde",
@@ -358,6 +365,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "ruvoraq-config"
+version = "0.1.0"
+dependencies = [
+ "dotenvy",
+]
+
+[[package]]
 name = "ruvoraq-macros"
 version = "0.1.0"
 dependencies = [
@@ -372,6 +386,7 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "inventory",
+ "ruvoraq-config",
  "schemars",
  "serde",
  "serde_json",

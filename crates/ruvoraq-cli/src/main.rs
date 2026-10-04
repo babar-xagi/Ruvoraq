@@ -5,7 +5,7 @@ mod project;
 use std::{env, ffi::OsString, process::ExitCode};
 
 const HELP: &str = "\
-Ruvoraq — Experiment 006
+Ruvoraq — Experiment 007
 
 Usage: ruvoraq <COMMAND>
        ruvoraq [--help | --version]

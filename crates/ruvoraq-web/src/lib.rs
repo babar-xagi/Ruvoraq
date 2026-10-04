@@ -10,6 +10,7 @@ mod state;
 use std::{collections::BTreeMap, future::Future, io, net::SocketAddr, sync::Arc};
 
 use axum::{Router, handler::Handler, routing};
+use ruvoraq_config::Env;
 use state::Services;
 use tokio::net::TcpListener;
 use tower_http::catch_panic::CatchPanicLayer;
@@ -30,11 +31,28 @@ pub use state::{Dependency, RequiredService, ServiceProbe};
 
 /// The application identity and listening address.
 ///
-/// Environment profiles and configuration loading are deferred to later phases.
+/// settings.rs defaults can be overridden by a typed Env snapshot.
 #[derive(Clone, Debug)]
 pub struct Settings {
     pub app_name: String,
     pub address: SocketAddr,
+}
+
+impl Settings {
+    /// Process/.env overrides take priority over settings.rs defaults.
+    pub fn with_env(mut self, env: &Env) -> io::Result<Self> {
+        self.app_name = env.get_or("RUVORAQ_APP_NAME", self.app_name)?;
+        if self.app_name.trim().is_empty() || self.app_name.chars().any(char::is_control) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "RUVORAQ_APP_NAME must be non-empty text without control characters",
+            ));
+        }
+        let host = env.get_or("RUVORAQ_HOST", self.address.ip())?;
+        let port = env.get_or("RUVORAQ_PORT", self.address.port())?;
+        self.address = SocketAddr::new(host, port);
+        Ok(self)
+    }
 }
 
 impl Default for Settings {
@@ -58,6 +76,7 @@ pub struct App {
     documentation: Vec<(&'static str, &'static str, serde_json::Value)>,
     docs_enabled: bool,
     route_paths: Vec<String>,
+    environment: Env,
 }
 
 impl Default for App {
@@ -70,6 +89,7 @@ impl Default for App {
             documentation: Vec::new(),
             docs_enabled: true,
             route_paths: Vec::new(),
+            environment: Env::default(),
         }
     }
 }
@@ -194,6 +214,20 @@ impl App {
             }
         }
         Ok(())
+    }
+
+    /// Apply a configuration snapshot, then expose it through env() and Inject<Env>.
+    /// Bootstrap calls this automatically; explicit App builders opt in.
+    pub fn environment(mut self, env: Env) -> io::Result<Self> {
+        self.settings = self.settings.with_env(&env)?;
+        self.docs_enabled = env.get_or("RUVORAQ_DOCS", self.docs_enabled)?;
+        self.environment = env.clone();
+        Ok(self.provide(env))
+    }
+
+    /// Read custom configuration in a configure hook without loading files again.
+    pub fn env(&self) -> &Env {
+        &self.environment
     }
 
     /// Disable built-in documentation endpoints, for example in production.

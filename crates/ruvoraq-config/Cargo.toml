@@ -1,0 +1,11 @@
+[package]
+name = "ruvoraq-config"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Ruvoraq typed configuration without global environment mutation"
+publish = false
+
+[dependencies]
+dotenvy = "0.15.7"
