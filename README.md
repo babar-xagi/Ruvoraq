@@ -1,10 +1,11 @@
 # Ruvoraq
 
-**Build Rust APIs with simple handlers and explicit configuration.**
+### Rust APIs. Simple handlers. Explicit configuration.
 
-Ruvoraq is a modular Rust backend framework with automatic route registration,
-typed requests, shared services, and interactive API documentation. Start with
-three files, then add application modules, SQLite, or PostgreSQL when you need them.
+Ruvoraq is a modular backend framework for Rust. Write asynchronous handlers,
+register routes with attributes, and keep application startup in `settings.rs`.
+Typed requests, shared services, OpenAPI documentation and optional databases
+provide a foundation that grows with your application.
 
 ```rust
 use ruvoraq::prelude::*;
@@ -15,83 +16,90 @@ async fn hello() -> &'static str {
 }
 ```
 
-**Status:** experimental · version 0.1.0 · Rust edition 2024.
-The framework is developed through small, verified experiments and is not yet
-published to crates.io. See the [project tracker](project.md) for completed work
-and the proposed roadmap.
+[Get started](#installation) · [User guide](doc/user_guid.md) ·
+[API example](#a-typed-api-in-a-few-lines) · [Testing](doc/testing_guid.md) ·
+[Developer guide](doc/developer_guid.md) · [Roadmap](project.md)
 
-[User guide](doc/user_guid.md) · [Developer guide](doc/developer_guid.md) ·
-[Project tracker](project.md) · [Examples](#examples)
+**Project status:** experimental, version `0.1.0`. Development has reached
+Experiment 010. Packages are installed from this repository and have not been
+published to crates.io. Production readiness remains a roadmap objective.
 
-## Quick start
+## Why Ruvoraq
 
-Install Rust and Cargo, then run these commands from the repository root:
+| Capability | What you get |
+| --- | --- |
+| Small starting point | Exactly three generated files; add modules when needed. |
+| Declarative routing | `#[get]`, `#[post]`, `#[put]`, `#[patch]` and `#[delete]` register handlers automatically. |
+| Typed APIs | Path/query extraction, JSON models, explicit validation and consistent errors. |
+| Clear responses | `ok`, `created`, `accepted` and `no_content` helpers. |
+| Shared services | Typed `Inject<T>` with provider validation before the server starts. |
+| Interactive documentation | OpenAPI 3.1 and locally bundled Swagger UI. |
+| Explicit configuration | Rust defaults, optional `.env` and typed environment values. |
+| Optional persistence | SQLite or PostgreSQL through SQLx, transactions and versioned migrations. |
+| Server lifecycle | Graceful Ctrl+C and Unix SIGTERM shutdown. |
 
-```sh
-cargo install --path crates/ruvoraq-cli --locked --force
-ruvoraq new hello-api
-cd hello-api
+## Installation
+
+The verified development environment is Linux/WSL2 with Rust and Cargo.
+The workspace uses Rust edition 2024 and declares Rust 1.85 as its minimum;
+verification currently uses Rust 1.99.0. A minimum-toolchain build remains pending.
+
+For operating-system prerequisites and Rust installation, follow the
+[installation guide](doc/user_guid.md#installation-and-environment-setup).
+With Git and Rust available:
+
+```bash
+cd "$HOME"
+git clone https://github.com/babar-xagi/Ruvoraq.git
+cd Ruvoraq
+cargo install --path crates/ruvoraq-cli --locked
+ruvoraq --version
+```
+
+For PostgreSQL migration commands, install the optional CLI feature:
+
+```bash
+cargo install --path crates/ruvoraq-cli --features postgres --locked --force
+```
+
+Application database features and CLI database features are enabled separately.
+Generated applications reference this checkout through a local Cargo path;
+keep the checkout available. See [updating your installation](doc/user_guid.md#updating-your-installation).
+
+## Your first application
+
+Run these commands from a directory where you keep application projects:
+
+```bash
+ruvoraq new hello_api
+cd hello_api
 ruvoraq dev
 ```
 
-Open [the greeting](http://127.0.0.1:8000/) or
-[Swagger UI](http://127.0.0.1:8000/docs). Press Ctrl+C to stop the server.
+| Endpoint | Purpose |
+| --- | --- |
+| [http://127.0.0.1:8000/](http://127.0.0.1:8000/) | Greeting response. |
+| [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) | Swagger UI with **Try it out**. |
+| [http://127.0.0.1:8000/openapi.json](http://127.0.0.1:8000/openapi.json) | Generated OpenAPI document. |
 
-The workspace declares Rust 1.85 as its minimum version. Current verification
-used Rust 1.99.0; a build on the minimum toolchain remains to be verified.
-
-Generated projects use a local path dependency on this checkout. Keep the
-checkout available and update the dependency path if you move it. After changing
-the CLI source, repeat the installation command to update the installed binary.
-
-## Small applications, clear structure
-
-A new application contains exactly three files:
+Press Ctrl+C to stop. `ruvoraq dev` builds and runs the application; restart it
+after edits because file watching is not implemented yet.
 
 ```text
-hello-api/
+hello_api/
 ├── Cargo.toml
 └── src/
-    ├── main.rs
-    └── settings.rs
+    ├── main.rs       # Route handlers
+    └── settings.rs   # Configuration and startup
 ```
 
-| File | Purpose |
-| --- | --- |
-| Cargo.toml | Package configuration and dependencies. |
-| src/main.rs | Application route handlers. |
-| src/settings.rs | Listening address, application settings, and startup composition. |
+Cargo selects `settings.rs` as the binary entry point.
+`ruvoraq::bootstrap!();` loads `main.rs` and starts the application.
+Cargo creates `Cargo.lock` and `target/` during builds.
 
-The manifest selects settings.rs as the binary entry point.
-`ruvoraq::bootstrap!();` supplies startup and loads the handlers in main.rs.
-Routes register automatically; a manual route list is unnecessary.
-Cargo creates Cargo.lock and target/ when the application is built.
+## A typed API in a few lines
 
-The generator validates Rust package names and refuses existing non-empty
-directories, files, and symlink targets. It accepts an existing empty directory.
-
-## Current capabilities
-
-| Area | Available today |
-| --- | --- |
-| Routing | GET, POST, PUT, PATCH, DELETE, and typed path parameters. |
-| Requests | JSON, query parameters, headers, and explicit model validation. |
-| Responses | Serializable models, named status helpers, and consistent framework errors. |
-| Services | Shared typed state through Inject<T>, with startup provider checks. |
-| Configuration | Typed environment values and optional .env loading. |
-| API documentation | OpenAPI 3.1 and locally bundled Swagger UI. |
-| Organization | Optional application modules generated by the CLI. |
-| Persistence | Opt-in SQLite/PostgreSQL, bound queries, transactions, migrations, and async setup. |
-| Lifecycle | Graceful shutdown on Ctrl+C and Unix SIGTERM. |
-
-Development mode builds and runs the application; it does not watch files.
-Authentication, background jobs, and AI
-capabilities are planned. Details and limitations live in the
-[project tracker](project.md).
-
-## Typed API example
-
-Add these models and handler to main.rs for a small demonstration:
+Add the following below the greeting in `src/main.rs`:
 
 ```rust
 #[schema]
@@ -99,6 +107,15 @@ Add these models and handler to main.rs for a small demonstration:
 #[serde(deny_unknown_fields)]
 struct CreateUser {
     name: String,
+}
+
+impl Validate for CreateUser {
+    fn validate(&self) -> Result<()> {
+        if self.name.trim().is_empty() {
+            return Err(invalid("name", "Name is required"));
+        }
+        Ok(())
+    }
 }
 
 #[schema]
@@ -110,139 +127,132 @@ struct User {
 
 /// Create a demonstration user.
 #[post("/users", status = 201)]
-async fn create_user(Json(input): Json<CreateUser>) -> Reply<User> {
+async fn create_user(ValidatedJson(input): ValidatedJson<CreateUser>) -> Reply<User> {
     created(User {
         id: 1,
-        name: input.name,
+        name: input.name.trim().to_owned(),
     })
 }
 ```
 
-With the server running:
+Restart the server and send a request:
 
-```sh
+```bash
 curl -i http://127.0.0.1:8000/users \
   -H 'Content-Type: application/json' \
   -d '{"name":"Ada"}'
 ```
 
-The response is HTTP 201 with `{"id":1,"name":"Ada"}`.
-This example does not store records. As the application grows, move models into
-their own modules; see the [user guide](doc/user_guid.md).
-
-Use `created(value)`, `accepted(value)`, or `no_content()` for common success
-statuses. Use `Result<T>` for handlers that can fail and `ValidatedJson<T>`
-for models implementing Validate.
-
-The attribute's `status` argument describes the OpenAPI response. The response
-helper determines the actual HTTP status.
+The response is HTTP `201` with `{"id":1,"name":"Ada"}`. A blank name returns
+`422`. This example returns a model without storing it; the comprehensive
+example demonstrates persistence. The route's `status` describes OpenAPI;
+the `created` helper sets the actual HTTP status.
 
 ## Interactive API documentation
 
-Every attribute-based application exposes:
+Request and response models annotated with `#[schema]` appear in OpenAPI.
+Handler doc comments supply descriptions. Swagger UI serves its JavaScript
+and CSS locally and supports sending requests directly from the browser.
 
-- **/docs** — Swagger UI with **Try it out**.
-- **/openapi.json** — the OpenAPI 3.1 document.
-
-Add `#[schema]` to models for field schemas. JavaScript and CSS are bundled
-locally, so the interface works without a CDN.
-
-![Swagger UI displaying a successful 201 Created response](docs/images/swagger-ui.jpg)
+![Ruvoraq Swagger UI with a successful API response](docs/images/swagger-ui.jpg)
 
 Disable documentation endpoints with `RUVORAQ_DOCS=false`.
-See the [user guide](doc/user_guid.md) for schema behavior and documentation limits.
+See [API documentation](doc/user_guid.md#openapi-and-swagger-ui) for metadata
+behavior and supported schemas.
 
-## Configuration and modules
+## Configuration and application modules
 
-Startup reads an optional .env file from the application's current directory:
+Create an optional `.env` in your application root:
 
 ```dotenv
-RUVORAQ_APP_NAME=hello-api
+RUVORAQ_APP_NAME=hello_api
 RUVORAQ_HOST=127.0.0.1
 RUVORAQ_PORT=8000
 RUVORAQ_DOCS=true
 ```
 
-Process environment values override .env values; absent values use the defaults
-in settings.rs. Custom values are available through typed Env getters.
+Precedence is **process environment → `.env` → Rust defaults**.
+Configuration is read at startup. Custom values use typed `Env` getters.
 
-Add a module from the application root:
-
-```sh
+```bash
 ruvoraq add app school
+RUVORAQ_PORT=8010 ruvoraq dev
 ```
 
-This creates models, routes, and services under src/apps/school/ and wires the
-module into settings.rs. Shared services are explicitly constructed in a
-configure hook and received by handlers through Inject<T>.
+The module command generates models, routes and services under `src/apps/school`
+and connects the module to startup. Providers are constructed explicitly in
+a configure hook and accessed through `Inject<T>`.
 
-For SQLite, enable the `sqlite` feature on the generated Ruvoraq dependency and
-initialize Database with `ruvoraq::bootstrap!(async configure);`.
-Apply numbered SQL files with `ruvoraq migrate`, inspect them with
-`ruvoraq migrate --status`, or use `Database::migrate("migrations")` at startup.
-The [persistent notes example](examples/app/README.md) provides a complete
-working application.
-
-## CLI commands
+## CLI reference
 
 | Command | Purpose |
 | --- | --- |
-| `ruvoraq --help` | Show usage. |
-| `ruvoraq --version` | Show the installed version. |
-| `ruvoraq new <name>` | Generate a minimal application. |
-| `ruvoraq migrate [--status]` | Apply or inspect migrations for an enabled backend. |
+| `ruvoraq --help` | Display available commands. |
+| `ruvoraq --version` | Display the installed version. |
+| `ruvoraq new <project-name>` | Generate a protected three-file application. |
+| `ruvoraq add app <module-name>` | Generate and connect an application module. |
 | `ruvoraq dev` | Build and run from the application root. |
-| `ruvoraq add app <name>` | Generate and connect an application module. |
+| `ruvoraq migrate` | Apply pending SQL migrations. |
+| `ruvoraq migrate --status` | Inspect pending/applied versions. |
 
-## Example and complete testing
+The generator validates package names and refuses non-empty directories,
+existing files and symlink targets. Database migrations require `DATABASE_URL`;
+`MIGRATIONS_DIR` defaults to `migrations` in the CLI.
 
-The single [comprehensive example](examples/app/README.md) combines school and
-billing APIs with persistent notes. It covers Experiments 001–010.
+## Explore the complete example
 
-```sh
-cd examples/app
+The [comprehensive application](examples/app/README.md) combines school/billing
+services with validated notes CRUD, configuration, documentation and migrations.
+School and billing state reset on restart; notes persist in the database.
+
+```bash
+cd "$HOME/Ruvoraq/examples/app"
 cp -n .env.example .env
 ruvoraq migrate --status
 ruvoraq migrate
 ruvoraq dev
 ```
 
-Open http://127.0.0.1:8000/docs. Students and billing counters reset on restart;
-notes persist in SQLite. The optional PostgreSQL backend has separate SQL files.
-`MIGRATIONS_DIR` selects the same migration folder for CLI and startup.
+SQLite is the example default. PostgreSQL uses a separate feature and SQL folder.
+See the [database walkthrough](doc/user_guid.md#optional-postgresql) and
+[complete testing guide](doc/testing_guid.md) for both backends and manual requests.
 
-The [testing guide](doc/testing_guid.md) includes every command, expected
-response, PostgreSQL setup, and instructions for creating your own project.
-
-## Development
-
-The workspace contains six crates: the public facade, route macros, HTTP
-adapter, CLI, configuration, and optional database adapter.
-See the [developer guide](doc/developer_guid.md) for architecture and contribution
-workflows.
+## Development and verification
 
 From the repository root:
 
-```sh
+```bash
 cargo fmt --all --check
 cargo check --workspace --all-features --locked
 cargo test --workspace --all-features --locked
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 ```
 
-Full live checks run in Linux/WSL2 with Python 3.11+ and Docker:
+Full live verification requires Python 3.11+, Docker and a PostgreSQL-enabled CLI:
 
-```sh
+```bash
 cargo install --path crates/ruvoraq-cli --features postgres --locked --force
 python3 examples/app/tests/full_test.py --postgres
 ```
 
-This explicitly runs the general, SQLite and PostgreSQL suites plus five real
-PostgreSQL framework tests. It owns and removes its temporary database container.
-Run without `--postgres` for general/SQLite checks only. The independent example
-is checked separately with its default SQLite and optional PostgreSQL features.
-See the testing guide for the coverage matrix and remaining verification limits.
+The runner uses temporary application copies and an owned disposable PostgreSQL
+container. Current evidence includes **75 regular tests per feature configuration,
+127 live checks and five real PostgreSQL tests**. Verification details and
+remaining limits are recorded in the [testing guide](doc/testing_guid.md).
+
+## Documentation and roadmap
+
+| Resource | Contents |
+| --- | --- |
+| [User guide](doc/user_guid.md) | Installation, first app, APIs, services, configuration and databases. |
+| [Testing guide](doc/testing_guid.md) | Repeatable checks, curl commands and expected responses. |
+| [Developer guide](doc/developer_guid.md) | Architecture, crate boundaries and contribution workflow. |
+| [Project tracker](project.md) | Completed experiments, limitations and planned work. |
+
+Authentication, middleware/observability, jobs, higher-level database tooling
+and AI capabilities remain future work. Minimum Rust-toolchain and successful
+certificate-verified PostgreSQL TLS tests are also pending.
 
 ## License
 
-Ruvoraq is licensed under [Apache-2.0](LICENSE).
+Licensed under [Apache-2.0](LICENSE).

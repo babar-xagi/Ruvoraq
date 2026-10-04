@@ -1,54 +1,191 @@
-# 📘 Ruvoraq user guide
+# Ruvoraq user guide
 
 Ruvoraq is an experimental Rust backend framework built around small applications,
 route attributes, and optional features. This guide describes the implementation
-through Experiment 010. The framework crates are currently used through local
+through Experiment 010. Examples build on the generated scaffold; when combining
+configuration, services and databases, extend one configure hook and retain one
+bootstrap invocation. The framework crates are currently used through local
 path dependencies; they have not been published to crates.io.
 
-## 🧭 Contents
+## Contents
 
-- [Start an application](#-start-an-application)
-- [Routes and responses](#-routes-and-responses)
-- [Typed requests and validation](#-typed-requests-and-validation)
-- [Configuration](#-configuration)
-- [Shared services](#-shared-services)
-- [Application modules](#-application-modules)
-- [OpenAPI and Swagger UI](#-openapi-and-swagger-ui)
-- [SQLite persistence](#-sqlite-persistence)
-- [Versioned SQLite migrations](#-versioned-sqlite-migrations)
-- [Optional PostgreSQL](#-optional-postgresql)
-- [Examples and troubleshooting](#-examples-and-troubleshooting)
+1. [Installation and environment setup](#installation-and-environment-setup)
+2. [Start an application](#start-an-application)
+3. [Routes and responses](#routes-and-responses)
+4. [Typed requests and validation](#typed-requests-and-validation)
+5. [Configuration](#configuration)
+6. [Shared services](#shared-services)
+7. [Application modules](#application-modules)
+8. [OpenAPI and Swagger UI](#openapi-and-swagger-ui)
+9. [SQLite persistence](#sqlite-persistence)
+10. [Versioned SQLite migrations](#versioned-sqlite-migrations)
+11. [Optional PostgreSQL](#optional-postgresql)
+12. [Examples and troubleshooting](#examples-and-troubleshooting)
+13. [Development workflow and release builds](#development-workflow-and-release-builds)
+14. [Current limitations](#current-limitations)
 
-## 🚀 Start an application
+## Installation and environment setup
 
-The workspace declares Rust 1.85 or newer and uses edition 2024. You need Rust,
-Cargo, and a working native build toolchain. The existing examples and their live
-test scripts have been exercised in Linux/WSL2.
+### Requirements
 
-Install the CLI from your checkout:
+| Component | Required for |
+| --- | --- |
+| Rust and Cargo | Compiling the framework and your application. |
+| Git | Cloning and updating the framework checkout. |
+| Native build tools | Linking Rust binaries and compiling native dependencies such as bundled SQLite. |
+| curl | Installing rustup and sending manual HTTP requests. |
+| Python 3.11+ | Running the comprehensive example test runner. |
+| Docker | The disposable PostgreSQL environment used by the full live suite. |
+| PostgreSQL server | Running your own PostgreSQL application; SQLite needs no server. |
 
-```sh
-cd /home/xagi/Ruvoraq
-cargo install --path crates/ruvoraq-cli --locked --force
+Linux/Ubuntu in WSL2 is the verified development environment. Native Windows
+and macOS have not received equivalent end-to-end verification. The live scripts
+use Unix process signals and should be run in Linux/WSL2.
+
+The workspace uses Rust edition 2024 and declares Rust 1.85 as its minimum.
+Current checks used Rust/Cargo 1.99.0. Actual minimum-toolchain verification is
+still pending; use a current stable toolchain for this walkthrough.
+
+### Windows: prepare WSL2
+
+If you already use Ubuntu in WSL2, skip to the Ubuntu setup below.
+Otherwise, open **PowerShell as Administrator**:
+
+```powershell
+wsl --install -d Ubuntu
+```
+
+Restart Windows if prompted. Open Ubuntu, finish its first-run Linux user setup,
+then verify the distribution from PowerShell:
+
+```powershell
+wsl --list --verbose
+```
+
+The Ubuntu entry should show version `2`. If your existing Ubuntu uses WSL1,
+convert that distribution with `wsl --set-version Ubuntu 2`.
+These steps follow [Microsoft's WSL installation guide](https://learn.microsoft.com/en-us/windows/wsl/install).
+All remaining Bash commands belong in the Ubuntu/WSL terminal.
+
+### Ubuntu / Debian: install build tools
+
+```bash
+sudo apt update
+sudo apt install -y build-essential pkg-config git curl ca-certificates
+```
+
+For the optional Python-based test suites:
+
+```bash
+sudo apt install -y python3
+python3 --version
+```
+
+The full runner uses Python 3.11 or newer. Your distribution's Python version
+must meet that requirement. SQLite support compiles the bundled SQLite library;
+you do not need to provision a separate SQLite service.
+
+### Install Rust
+
+Install Rust inside WSL rather than relying on a Windows Rust installation.
+The [official Rust installation page](https://rust-lang.org/tools/install/)
+provides the rustup command:
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source "$HOME/.cargo/env"
+rustc --version
+cargo --version
+```
+
+Follow the installer prompts. For an existing rustup installation, update the
+stable toolchain when appropriate with `rustup update stable`.
+Formatting and lint tools used during development can be installed with:
+
+```bash
+rustup component add rustfmt clippy
+```
+
+If a command is unavailable after installation, reopen the terminal or source
+`$HOME/.cargo/env`. Rust and installed Cargo binaries normally live in
+`$HOME/.cargo/bin`.
+
+### Clone Ruvoraq and install the CLI
+
+Keep the framework checkout in your Linux home directory:
+
+```bash
+cd "$HOME"
+git clone https://github.com/babar-xagi/Ruvoraq.git
+cd Ruvoraq
+cargo install --path crates/ruvoraq-cli --locked
 ruvoraq --help
 ruvoraq --version
-ruvoraq new hello-api
-cd hello-api
+```
+
+If you already cloned the repository, enter that checkout instead of cloning
+over it. The current version output is `ruvoraq 0.1.0`.
+The crates are not published to crates.io; installation from this checkout is
+the supported workflow at this stage.
+
+For PostgreSQL CLI migration support:
+
+```bash
+cargo install --path crates/ruvoraq-cli --features postgres --locked --force
+```
+
+The CLI feature enables PostgreSQL **migration commands**. Application database
+dependencies still need their own `sqlite` or `postgres` feature.
+
+### Updating your installation
+
+From your framework checkout, update with a fast-forward pull and reinstall
+the CLI you use:
+
+```bash
+git pull --ff-only
+cargo install --path crates/ruvoraq-cli --locked --force
+# Or keep PostgreSQL CLI support:
+cargo install --path crates/ruvoraq-cli --features postgres --locked --force
+```
+
+Choose one installation command. Reinstalling without `--features postgres`
+replaces the binary with the default SQLite-only migration CLI. If you have
+local framework changes, resolve them before updating the checkout.
+
+Building the workspace does not replace the installed CLI. `--force` replaces
+an existing installation; it does not overwrite generated application projects.
+Generated projects use a local dependency on this checkout, so source updates
+also affect them when they next build. Version `0.1.0` alone does not identify
+the exact installed experiment; reinstall from the intended Git revision.
+
+## Start an application
+
+With the CLI installed, create an application in a directory you own:
+
+```bash
+mkdir -p "$HOME/projects"
+cd "$HOME/projects"
+ruvoraq new hello_api
+cd hello_api
+cargo check
 ruvoraq dev
 ```
 
-Visit http://127.0.0.1:8000/ for the greeting and
-http://127.0.0.1:8000/docs for interactive API testing. Press Ctrl+C to stop.
+The first build downloads and compiles dependencies. In a second terminal,
+`curl -i http://127.0.0.1:8000/` returns HTTP 200 and `Hello`.
+Use port 8000 unless you override it with RUVORAQ_PORT.
 
-After updating the CLI source, repeat the installation command. Building the
-workspace does not replace the executable installed in ~/.cargo/bin.
+Visit http://127.0.0.1:8000/docs for interactive API testing. Press Ctrl+C
+to stop the server before restarting after source changes. For installation
+updates, use [the CLI update workflow](#updating-your-installation).
 
 ### What is generated?
 
 Immediately after `new`, the project contains exactly three files:
 
 ```text
-hello-api/
+hello_api/
 ├── Cargo.toml
 └── src/
     ├── main.rs
@@ -107,7 +244,7 @@ An existing empty directory is accepted. An existing non-empty directory,
 including hidden entries, is refused; files and symlink targets are refused.
 Errors appear on stderr with a nonzero exit status.
 
-## 🛣️ Routes and responses
+## Routes and responses
 
 The attributes `#[get]`, `#[post]`, `#[put]`, `#[patch]`, and `#[delete]`
 register async handlers automatically. Paths start with / and use whole-segment
@@ -167,7 +304,7 @@ For manual App route registration, return an explicit response wrapper such as
 Json or Reply for arbitrary models. Automatic model conversion belongs to the
 route attributes.
 
-## 🧩 Typed requests and validation
+## Typed requests and validation
 
 Use Path for URL captures, Query for query parameters, Json for deserialization,
 and ValidatedJson when a model implements Validate. Put a JSON body extractor
@@ -239,6 +376,67 @@ use deny_unknown_fields when extra JSON fields should be rejected.
 HeaderMap exposes incoming headers. The school example demonstrates reading
 x-request-id and adding it to a response.
 
+### Path parameters, query defaults and headers
+
+Add these handlers to a generated `src/main.rs`, keeping its existing
+`use ruvoraq::prelude::*;` import:
+
+```rust
+#[get("/products/{id}")]
+async fn product(Path(id): Path<u64>) -> Value {
+    json!({"id": id})
+}
+
+#[schema]
+#[derive(Deserialize)]
+struct Search {
+    q: Option<String>,
+    #[serde(default = "default_limit")]
+    limit: u16,
+}
+
+fn default_limit() -> u16 {
+    10
+}
+
+#[get("/search")]
+async fn search(Query(input): Query<Search>) -> Result<Value> {
+    if !(1..=100).contains(&input.limit) {
+        return Err(invalid("limit", "Limit must be between 1 and 100"));
+    }
+    Ok(json!({"query": input.q, "limit": input.limit}))
+}
+
+#[get("/request-info")]
+async fn request_info(headers: HeaderMap) -> Value {
+    let request_id = headers
+        .get("x-request-id")
+        .and_then(|value| value.to_str().ok());
+    json!({"request_id": request_id})
+}
+```
+
+Restart the server and try these in a second terminal:
+
+```bash
+curl -i http://127.0.0.1:8000/products/42
+# 200: {"id":42}
+curl -i http://127.0.0.1:8000/products/invalid
+# 400: invalid_path
+curl -i 'http://127.0.0.1:8000/search?q=rust&limit=5'
+# 200: {"query":"rust","limit":5}
+curl -i http://127.0.0.1:8000/search
+# 200: {"query":null,"limit":10}
+curl -i 'http://127.0.0.1:8000/search?limit=0'
+# 422: validation_error
+curl -i http://127.0.0.1:8000/request-info -H 'x-request-id: example-123'
+# 200: {"request_id":"example-123"}
+```
+
+Query deserialization supplies the default; application code checks the allowed
+range. Reading a header through HeaderMap does not add that header to OpenAPI
+automatically.
+
 ### Error responses
 
 Framework errors use a consistent envelope:
@@ -269,7 +467,7 @@ Framework 5xx errors return a generic internal error without private details.
 Custom raw responses and third-party extractors may have their own error format.
 Validation rules are explicit Rust code; no validation derive is implemented.
 
-## ⚙️ Configuration
+## Configuration
 
 Keep startup and configuration in settings.rs. The generated defaults use
 localhost and port 8000. Bootstrap loads an optional .env file from the current
@@ -285,12 +483,22 @@ working directory and applies these variables:
 Example .env:
 
 ```dotenv
-RUVORAQ_APP_NAME=hello-api
+RUVORAQ_APP_NAME=hello_api
 RUVORAQ_HOST=127.0.0.1
 RUVORAQ_PORT=8000
 RUVORAQ_DOCS=true
 SCHOOL_GREETING=Welcome to school
 ```
+
+Database workflows also use these application/CLI keys:
+
+| Variable | Behavior |
+| --- | --- |
+| DATABASE_URL | Required by migrate; application configure hooks choose whether a fallback is appropriate. |
+| MIGRATIONS_DIR | Migration CLI defaults to migrations; a startup hook must read the same key to share its folder choice. |
+
+These keys do not enable a database automatically. Enable a database feature
+and initialize/register its provider in the configure hook.
 
 Process environment values take precedence over file values. A missing optional
 .env file is accepted, but malformed content and duplicate file keys are errors.
@@ -317,7 +525,7 @@ raw values. Strings retain their original contents, including empty strings.
 The configure hook runs after built-in environment settings are applied. A
 manual App builder can opt in with `app.environment(Env::load()?)?`.
 
-## 🤝 Shared services
+## Shared services
 
 Register a service in the settings configure hook with
 `app.provide(service)`, or `app.provide_shared(arc)` when an Arc already exists.
@@ -344,7 +552,7 @@ For mutable shared state, use a suitable synchronization primitive. The school
 example uses a Mutex for student records and an atomic counter for visits.
 Avoid holding a standard mutex guard across an await.
 
-## 📦 Application modules
+## Application modules
 
 From a generated application's root:
 
@@ -377,7 +585,7 @@ The generated services module starts private. Expose it with
 `pub mod services;` in the module's mod.rs when settings.rs must construct its
 service.
 
-## 📚 OpenAPI and Swagger UI
+## OpenAPI and Swagger UI
 
 Documentation is available by default:
 
@@ -401,7 +609,7 @@ App::docs(false) when you need those paths.
 
 ![Swagger UI showing the school API](../docs/images/swagger-ui.jpg)
 
-## 🗄️ SQLite persistence
+## SQLite persistence
 
 SQLite support is optional. Add the feature to your application's existing
 Ruvoraq dependency; keep its generated path:
@@ -451,7 +659,145 @@ startup migration checks. PostgreSQL is available through a separate opt-in
 adapter below. An ORM, reversible migrations, migration-file generators, and
 database scaffolding remain future work.
 
-## 🔄 Versioned SQLite migrations
+### Complete SQLite setup in a new application
+
+This walkthrough creates a separate `notes_api` application. Use a new project
+name if that directory already exists:
+
+```bash
+mkdir -p "$HOME/projects"
+cd "$HOME/projects"
+ruvoraq new notes_api
+cd notes_api
+```
+
+Add `features = ["sqlite"]` under the existing `[dependencies.ruvoraq]` section
+in `Cargo.toml`; preserve its generated local path. Then create the first SQL
+migration and an optional environment file:
+
+```bash
+mkdir migrations
+cat > migrations/0001_create_notes.sql <<'SQL'
+CREATE TABLE notes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL CHECK(length(trim(title)) BETWEEN 1 AND 120)
+);
+SQL
+cat > .env <<'ENV'
+DATABASE_URL=sqlite://notes.sqlite
+MIGRATIONS_DIR=migrations
+RUVORAQ_PORT=8000
+ENV
+```
+
+Replace `src/settings.rs` with this complete startup file:
+
+```rust
+use std::net::Ipv4Addr;
+use ruvoraq::{App, Database, Settings};
+
+pub const APP_NAME: &str = "notes_api";
+pub const HOST: Ipv4Addr = Ipv4Addr::LOCALHOST;
+pub const PORT: u16 = 8000;
+
+pub fn settings() -> Settings {
+    Settings {
+        app_name: APP_NAME.to_owned(),
+        address: (HOST, PORT).into(),
+    }
+}
+
+async fn configure(app: App) -> std::io::Result<App> {
+    let url: String = app.env().get("DATABASE_URL")?;
+    let directory = app.env().get_or("MIGRATIONS_DIR", "migrations".to_owned())?;
+    let database = Database::connect(&url).await?;
+    database.migrate(directory).await?;
+    Ok(app.provide(database))
+}
+
+ruvoraq::bootstrap!(async configure);
+```
+
+Replace `src/main.rs` with this complete minimal notes API:
+
+```rust
+use ruvoraq::prelude::*;
+
+#[schema]
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CreateNote {
+    title: String,
+}
+
+impl Validate for CreateNote {
+    fn validate(&self) -> Result<()> {
+        let length = self.title.trim().chars().count();
+        if !(1..=120).contains(&length) {
+            return Err(invalid("title", "Title must contain 1–120 characters"));
+        }
+        Ok(())
+    }
+}
+
+#[schema]
+#[derive(Serialize)]
+struct Note {
+    id: i64,
+    title: String,
+}
+
+#[get("/notes")]
+async fn notes(database: Inject<Database>) -> Result<Vec<Note>> {
+    let rows: Vec<(i64, String)> = sqlx::query_as("SELECT id, title FROM notes ORDER BY id")
+        .fetch_all(database.pool())
+        .await
+        .map_err(|_| Error::internal())?;
+    Ok(rows.into_iter().map(|(id, title)| Note { id, title }).collect())
+}
+
+#[post("/notes", status = 201)]
+async fn create_note(
+    database: Inject<Database>,
+    ValidatedJson(input): ValidatedJson<CreateNote>,
+) -> Result<Reply<Note>> {
+    let (id, title): (i64, String) =
+        sqlx::query_as("INSERT INTO notes (title) VALUES (?) RETURNING id, title")
+            .bind(input.title.trim())
+            .fetch_one(database.pool())
+            .await
+            .map_err(|_| Error::internal())?;
+    Ok(created(Note { id, title }))
+}
+```
+
+Check, apply and start:
+
+```bash
+cargo check
+ruvoraq migrate --status
+ruvoraq migrate
+ruvoraq migrate
+ruvoraq dev
+```
+
+The first apply reports one migration; the repeat reports zero. In a second
+terminal:
+
+```bash
+curl -i http://127.0.0.1:8000/notes
+# 200: [] on a fresh database
+curl -i http://127.0.0.1:8000/notes \
+  -H 'Content-Type: application/json' -d '{"title":"My first note"}'
+# 201: {"id":1,"title":"My first note"}
+curl -i http://127.0.0.1:8000/notes
+```
+
+Stop and restart the server; the note remains. Open `/docs` to send the same
+requests through Swagger UI. Read/update/delete handlers and full migration
+failure tests are available in the [comprehensive example](../examples/app/README.md).
+
+## Versioned SQLite migrations
 
 Experiment 009 adds forward-only migrations. Create a migrations/ directory in
 your application's root and add files with positive numeric versions:
@@ -522,8 +868,14 @@ in a new, higher version. Do not edit database history to bypass checks.
 
 The runner owns transaction boundaries. Scripts must not contain BEGIN, COMMIT,
 ROLLBACK, or other transaction-control statements; non-transactional directives
-are unsupported. Run one migrator at a time. There is no cross-process migration
-coordinator in this phase.
+are unsupported. Run one SQLite migrator at a time; the SQLite adapter has no
+cross-process migration coordinator. PostgreSQL uses advisory locking as
+described below.
+
+The CLI reads MIGRATIONS_DIR from the process environment or .env and defaults
+to migrations. For startup to use the same folder, read that key in the configure
+hook as shown in the complete SQLite example. The comprehensive example selects
+backend-specific migrations/sqlite or migrations/postgres folders.
 
 Startup loads files relative to the current working directory. Ship migrations/
 with the application and run from the intended project root. A missing or empty
@@ -534,7 +886,7 @@ The notes example's first migration uses CREATE TABLE IF NOT EXISTS to preserve
 the known Experiment 008 notes schema. This is not general schema detection or
 an automatic baseline for arbitrary legacy databases.
 
-## 🐘 Optional PostgreSQL
+## Optional PostgreSQL
 
 Experiment 010 adds an explicit PostgreSQL adapter. Enable it in your
 application's existing local Ruvoraq dependency:
@@ -616,7 +968,68 @@ local database setup, CRUD, migrations, and its 27-check live suite. The
 consolidated example defaults to port 8000. PostgreSQL support remains optional; a default generated application
 has no SQLx dependency.
 
-## 🧪 Examples and troubleshooting
+### Provision a local development database with Docker
+
+If Docker is already available in WSL, check `docker info` before proceeding.
+This creates a separate PostgreSQL development container. From your application
+root, create `.postgres.env` (ignore it as shown in the Git workflow section):
+
+```dotenv
+POSTGRES_USER=ruvoraq_dev
+POSTGRES_DB=ruvoraq_dev
+POSTGRES_PASSWORD=change-this-local-password
+```
+
+Choose your own development password, then run:
+
+```bash
+chmod 600 .postgres.env
+docker run -d --name ruvoraq-guide-postgres \
+  --env-file .postgres.env \
+  -p 127.0.0.1:5433:5432 \
+  postgres:17-alpine
+docker exec ruvoraq-guide-postgres \
+  pg_isready -h 127.0.0.1 -U ruvoraq_dev -d ruvoraq_dev
+```
+
+Wait until the TCP readiness check reports accepting connections. Port 5433
+avoids the usual local PostgreSQL port. The container must have a new name;
+reuse or stop your existing development container deliberately if one exists.
+
+For the repository's comprehensive example, select PostgreSQL explicitly:
+
+```bash
+cd "$HOME/Ruvoraq/examples/app"
+export DATABASE_URL='postgres://ruvoraq_dev:change-this-local-password@127.0.0.1:5433/ruvoraq_dev'
+export MIGRATIONS_DIR=migrations/postgres
+ruvoraq migrate --status
+ruvoraq migrate
+cargo run --no-default-features --features postgres
+```
+
+Use the actual password from your environment file. URL-encode reserved
+characters if they appear in a connection URL. The example's `.env` may select
+SQLite; these process exports override it. Its application-level `postgres`
+feature selects PostgreSQL handlers. In a new application that directly enables
+the facade dependency's `postgres` feature, the earlier `ruvoraq dev` command
+still works without this example-specific feature selector.
+
+The notes endpoints and Swagger UI use the same URLs as the SQLite example.
+PostgreSQL has separate records and migration history. After stopping the app,
+clear the overrides before returning to SQLite:
+
+```bash
+unset DATABASE_URL MIGRATIONS_DIR
+```
+
+To pause this development database, use `docker stop ruvoraq-guide-postgres`;
+resume it with `docker start ruvoraq-guide-postgres`. When you are finished and
+want to discard its container-local database, run
+`docker rm -f ruvoraq-guide-postgres`. This example does not configure a named
+data volume. For disposable automated testing, use the full runner instead of
+maintaining this manual container.
+
+## Examples and troubleshooting
 
 One comprehensive application now combines the school/billing API and notes
 database examples. SQLite is the default; PostgreSQL is an explicit feature.
@@ -624,13 +1037,13 @@ Use [the complete testing guide](testing_guid.md) for a fresh project, manual
 HTTP commands, expected responses, configuration and both database backends.
 
 ```sh
-cd /home/xagi/Ruvoraq/examples/app
+cd "$HOME/Ruvoraq/examples/app"
 cp -n .env.example .env
 ruvoraq migrate --status
 ruvoraq migrate
 ruvoraq dev
 # From the framework root, run all automated live checks:
-cd /home/xagi/Ruvoraq
+cd "$HOME/Ruvoraq"
 python3 examples/app/tests/full_test.py --postgres
 ```
 
@@ -641,6 +1054,8 @@ Process environment variables override .env for this setting too.
 
 | Issue | What to check |
 | --- | --- |
+| Cargo or ruvoraq is not found | Source "$HOME/.cargo/env" or reopen the WSL terminal; verify the CLI installation. |
+| Linker cc is not found | Install the build-essential package inside WSL/Ubuntu. |
 | CLI still generates an old template | Reinstall crates/ruvoraq-cli with --locked --force. |
 | Port is already in use | Stop the other server or set RUVORAQ_PORT. |
 | Project marker is missing | Run dev inside a generated application's root. |
@@ -652,6 +1067,105 @@ Process environment variables override .env for this setting too.
 | Applied migration has changed | Restore the original file; append a new version for changes. |
 | Database connection fails | Check the sqlite: URL, parent directory, and permissions. |
 | Generated dependency path is missing | Update the local Ruvoraq path after moving the checkout. |
+| Copied path uses another username | Preserve the generated Cargo path or replace /home/xagi with your actual checkout path. |
+| Docker live tests cannot start | Verify docker info in WSL and Python 3.11+ before running the full suite. |
 
 For contributor workflows, see the [developer guide](developer_guid.md).
 For completed experiments and planned work, see [project tracking](../project.md).
+
+## Development workflow and release builds
+
+### Working on your application
+
+Run these commands from the application root:
+
+```bash
+cargo check
+cargo fmt
+cargo clippy --all-targets -- -D warnings
+ruvoraq dev
+```
+
+`ruvoraq dev` uses Cargo's development profile. Stop the server before restarting
+after edits. The generated route module is loaded by bootstrap expansion;
+format it directly when necessary:
+
+```bash
+rustfmt --edition 2024 src/main.rs
+```
+
+### Keep local artifacts out of Git
+
+The generator deliberately creates only three files. In an independently
+version-controlled application, create your own `.gitignore`:
+
+```gitignore
+target/
+.env
+.env.*
+!.env.example
+.postgres.env
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.sqlite-journal
+__pycache__/
+*.pyc
+```
+
+Commit `Cargo.lock` for an application so dependency versions can be reproduced.
+Keep migration SQL in version control and preserve applied versions unchanged.
+Keep a placeholder `.env.example` for setup instructions.
+
+### Build and run an optimized binary
+
+After the application has a lockfile:
+
+```bash
+cargo build --release --locked
+./target/release/hello_api
+```
+
+The executable name follows `[[bin]].name` in the generated manifest. For the
+comprehensive example it is `app`. Custom `CARGO_TARGET_DIR` values change its
+output location.
+
+Run the binary from the application root when it uses relative configuration
+or migration paths. Bootstrap reads `.env` from the working directory, not from
+the executable's directory. Distributing only a binary is insufficient for an
+application that loads SQL migrations at startup; ship the selected migration
+folder as well.
+
+Configuration also works with a release binary:
+
+```bash
+RUVORAQ_HOST=0.0.0.0 RUVORAQ_PORT=8080 RUVORAQ_DOCS=false \
+  ./target/release/hello_api
+```
+
+`0.0.0.0` listens on all IPv4 interfaces; `127.0.0.1` listens on loopback.
+Unix SIGTERM and Ctrl+C request graceful shutdown. There is currently no forced
+shutdown deadline. These are build/runtime instructions; the framework remains
+experimental and has not completed a production-readiness review.
+
+For repeatable framework and HTTP verification, follow the
+[testing guide](testing_guid.md). It explains default/all-feature Cargo checks,
+the single comprehensive application, isolated test databases and expected
+manual HTTP responses.
+
+## Current limitations
+
+| Area | Current boundary |
+| --- | --- |
+| Distribution | Local Cargo paths; packages are not published to crates.io. |
+| Development server | Build/run only; no automatic file watching. |
+| Validation | Explicit Validate implementation; no validation derive. |
+| Dependency injection | Explicit per-App providers; no automatic construction or request-scoped graph. |
+| Database tooling | SQLx queries and forward-only migrations; no ORM, add-db command or reversible migration generator. |
+| API metadata | Known extractors/models are supported; custom extractors and dynamic statuses need additional metadata. |
+| Platform verification | Linux/WSL2 verified; equivalent native Windows/macOS live runs are pending. |
+| Deployment | Authentication, jobs and broader operations tooling remain planned. |
+| Compatibility | Rust 1.85 is declared; an actual minimum-toolchain build is pending. |
+| PostgreSQL TLS | Rustls support is enabled; successful certificate-verified TLS tests remain pending. |
+
+The [project tracker](../project.md) records delivered behavior and future work.
