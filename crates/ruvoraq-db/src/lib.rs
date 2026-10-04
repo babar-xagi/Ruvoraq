@@ -1,4 +1,6 @@
 //! Optional SQLite persistence. SQLx remains available for parameterized queries.
+mod migrations;
+pub use migrations::{MigrationStatus, Migrations};
 pub use sqlx;
 use sqlx::{
     Sqlite, SqlitePool, Transaction,

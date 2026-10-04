@@ -2,7 +2,7 @@
 
 This guide is for contributors to the framework. Application authors should
 start with the [user guide](user_guid.md). The current architecture covers
-Experiments 001–008; implementation details may change before a public release.
+Experiments 001–009; implementation details may change before a public release.
 
 ## 🧭 Repository map
 
@@ -22,8 +22,9 @@ database member, while a default application dependency does not pull in SQLx.
 
 [examples/app](../examples/app/src/settings.rs) demonstrates the general HTTP
 features. [examples/sqlite-api](../examples/sqlite-api/src/settings.rs)
-demonstrates asynchronous setup and durable data. Both are independent Cargo
-workspaces with their own lockfiles.
+demonstrates asynchronous setup and durable data. The [migration-demo](../examples/migration-demo/README.md) provides a fresh
+task API with a migration-first workflow. All three examples are independent
+Cargo workspaces with their own lockfiles.
 
 ## 🏗️ Application startup
 
@@ -162,8 +163,8 @@ untrusted parse-error text in public diagnostics.
 
 ## 🗄️ SQLite adapter
 
-The sqlite facade feature exports Database and sqlx. SQLx uses SQLite and Tokio
-runtime support without its query macros, migrations, PostgreSQL, or MySQL
+The sqlite facade feature exports Database, Migrations, MigrationStatus, and sqlx. SQLx uses SQLite and Tokio
+runtime and migration support without its query macros, PostgreSQL, or MySQL
 features. Queries in the example use runtime query/query_as plus bound values.
 
 Database::connect currently:
@@ -183,9 +184,43 @@ explicit rollback, and drop rollback are covered by tests. Clones share the same
 pool, and close affects all of them.
 
 The notes example maps query failures to Error::internal before responding.
-Its initial CREATE TABLE IF NOT EXISTS demonstrates setup, not schema migration.
-Future migration work should add ordered version tracking and failure tests
-before exposing a CLI workflow.
+Its numbered first migration preserves the known original notes schema.
+Arbitrary legacy schemas still require an explicit migration plan.
+
+### Versioned migrations (Experiment 009)
+
+Database::migrate(path) loads and applies files; migration_status(path) validates
+and reports history. Migrations::load(path) creates a reusable source snapshot,
+with run(&database) and status(&database) operations. MigrationStatus exposes
+version, description, and applied.
+
+The adapter enables SQLx's migrate feature. It validates positive unique
+versions and simple filenames, then uses SQLx for checksums, history storage,
+and per-file transactions. Before running pending files, it verifies every
+recorded checksum, missing files, incomplete history, and append-only ordering.
+This prevents a pending earlier file from running before discovering changed
+later history. Driver errors omit SQL and raw connection details.
+
+History lives in _sqlx_migrations. Status checks sqlite_master first, so a fresh
+status request does not create migration history. The connection itself can
+create a database file. Earlier committed migrations survive a later failure;
+tests verify both DDL rollback and a fixed-file retry.
+
+The CLI now links the SQLite adapter directly and supports migrate/--status
+without compiling application code. The default application facade still
+excludes SQLx. CLI configuration requires DATABASE_URL; it cannot infer a
+fallback defined inside an application's configure hook.
+
+Sources are runtime files, not embedded assets. Ship them with deployed
+applications. Scripts are trusted developer SQL and must not control their own
+transactions. SQLx's SQLite migration lock is a no-op; run one migration actor
+at a time rather than claiming cross-process coordination.
+
+Coverage includes five migration integration tests, two CLI behavior tests,
+and live startup/upgrade/recovery checks in the notes example. Reversible
+migrations and migration-file generation remain deferred.
+
+
 
 ## 📚 OpenAPI generation
 
@@ -216,7 +251,7 @@ image, not a generated mockup.
 ## 🧰 CLI and generator safety
 
 The CLI exposes only the commands listed in the user guide. Do not document
-future routes, doctor, database, or migration commands as available.
+future routes, doctor, database scaffolding, or reversible migration commands as available.
 
 new validates names before writing and refuses non-empty, file, or symlink
 targets. It creates files exclusively and rolls back only entries it owns.
@@ -252,8 +287,10 @@ The examples are independent workspaces; verify them separately:
 ```sh
 cargo check --manifest-path examples/app/Cargo.toml --locked
 cargo check --manifest-path examples/sqlite-api/Cargo.toml --locked
+cargo check --manifest-path examples/migration-demo/Cargo.toml --locked
 cargo clippy --manifest-path examples/app/Cargo.toml --all-targets --locked -- -D warnings
 cargo clippy --manifest-path examples/sqlite-api/Cargo.toml --all-targets --locked -- -D warnings
+cargo clippy --manifest-path examples/migration-demo/Cargo.toml --all-targets --locked -- -D warnings
 cargo install --path crates/ruvoraq-cli --locked --force
 python3 examples/app/tests/smoke.py
 python3 examples/sqlite-api/tests/smoke.py
@@ -277,21 +314,30 @@ member still builds the database member.
 
 ### Existing evidence
 
-The Experiment 008 validation recorded:
+Experiment 009 verification recorded:
 
 | Suite | Verified scope |
 | --- | --- |
-| Framework tests | 66 tests including a documentation test. |
+| Framework tests | 73 passing, including a documentation test; default and all features. |
 | General application smoke suite | 68 live checks. |
-| SQLite application smoke suite | 23 live checks, including restarts and persistence. |
-| Database unit tests | Binding, sharing, transactions, persistence, foreign keys, redaction. |
-| Build/lint checks | Workspace, all features, examples, strict Clippy. |
+| SQLite application smoke suite | 30 live checks, including migration upgrades and recovery. |
+| Fresh task demo | 11 direct live checks and migration commands run in its actual directory. |
+| Migration integration tests | Ordering, repeat/append, rollback/retry, changed/missing/dirty history, invalid sources, persistence. |
+| Build/lint checks | Workspace and three independent applications, with strict Clippy. |
 
-These are the counts at that validation point, not permanent targets.
-The live suites build temporary copies and own their server processes and
-database files. They exercise startup errors, concurrent requests, signals,
-configuration precedence, schemas, and real HTTP responses. Keep test data out
-of the checked-in examples.
+The automated live suites total 98 checks. The task demo's 11 checks were a
+separate direct verification run; it has no standalone smoke script.
+These counts describe the recorded validation, not permanent targets.
+
+The automated live suites build temporary copies and own their server processes
+and database files. They exercise startup errors, concurrent requests, signals,
+configuration precedence, schemas, and real HTTP responses. Local task-demo
+test data remains in its ignored SQLite database; it is not committed.
+
+For manual migration verification, follow the
+[task demo README](../examples/migration-demo/README.md). Run status, apply,
+status, and apply again before starting the API. A repeat should apply zero
+files without losing existing rows.
 
 The workspace declares Rust 1.85. Experiment 008 was tested using the installed
 Rust 1.99.0 toolchain and dependency MSRV metadata was checked; an actual
@@ -308,10 +354,9 @@ Add meaningful tests for behavior, failures, and boundaries. Update the user
 guide with working examples, this guide with architectural implications, and
 [project.md](../project.md) with implementation and verification status.
 
-For a database migration phase, resolve version storage, ordering, transaction
-behavior, repeated execution, and failed migration recovery before adding
-commands. For later PostgreSQL support, keep backend selection explicit and
-test against a real server rather than treating SQLite success as equivalent.
+For further migration work, preserve version/checksum validation and test
+recovery before adding reversible or generated workflows. For PostgreSQL, keep
+backend selection explicit and test against a real server rather than treating SQLite success as equivalent.
 
 Before a public release, establish CI, verify the declared minimum Rust
 toolchain, review public API stability, and replace checkout-specific packaging.

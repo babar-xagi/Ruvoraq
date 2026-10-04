@@ -10,15 +10,17 @@ proposals, not delivered features or promised release dates.
 ## 📍 Current position
 
 - Version: 0.1.0, experimental local development.
-- Latest pushed implementation: Experiment 008, optional SQLite and async setup.
-- Implementation and guides commit: cb79bb6 (pushed to origin/main).
-- Experiment 008: implemented, verified, committed, and pushed.
-- User/developer guides and project tracking: included in the pushed update.
+- Current implementation: Experiment 009, versioned SQLite migrations.
+- This revision includes the migration API, CLI, examples, tests, and updated guides.
+- Three runnable examples: in-memory API, persistent notes, and migration-first tasks.
+- Verification: 73 framework tests, 98 automated live checks, and 11 task-demo live checks.
 - Framework crates: not published to crates.io.
-- Current focus: select the next narrow experiment from the proposed roadmap.
+- Next proposed phase: optional PostgreSQL, subject to the maintainer's selected scope.
+- Delivery identifiers and branch publication are recorded in Git history.
 
 The current foundation is functional and tested. It is not yet a complete
-production platform with authentication, migrations, operations tooling, or AI.
+production platform with authentication, server-database support, operations
+tooling, or AI.
 
 ## ✅ Completed experiments
 
@@ -32,6 +34,7 @@ production platform with authentication, migrations, operations tooling, or AI.
 | 006 — API documentation | Automatic OpenAPI 3.1, offline Swagger UI, API testing UI and screenshot. | Pushed |
 | 007 — Configuration | Typed environment snapshots, optional dotenv, built-in settings overrides. | Pushed |
 | 008 — SQLite | Optional database feature, bound SQL, transactions, async setup, durable notes example. | Pushed |
+| 009 — Migrations | Ordered SQL files, checksums, history validation, transactions, CLI status/apply, startup migrations. | Complete in this revision |
 
 These experiments extend one framework; their numbers record actual work.
 Earlier experiment limitations should not be read as current feature limits.
@@ -74,8 +77,9 @@ Earlier experiment limitations should not be read as current feature limits.
 - [x] Foreign keys and redacted connection failures.
 - [x] Async application configuration hook.
 - [x] Persistent notes CRUD example with restart tests.
-- [ ] Versioned schema migrations.
-- [ ] Database and migration CLI commands.
+- [x] Forward-only versioned SQLite migrations.
+- [x] SQLite migration apply/status CLI commands.
+- [ ] Database scaffolding and reversible migration CLI commands.
 - [ ] PostgreSQL adapter and integration coverage.
 - [ ] ORM or high-level model/repository generation.
 
@@ -99,6 +103,7 @@ Ruvoraq/
 │   └── ruvoraq-web/
 └── examples/
     ├── app/
+    ├── migration-demo/
     └── sqlite-api/
 ```
 
@@ -111,6 +116,18 @@ The framework currently uses Axum/Tokio for HTTP, Schemars for schema generation
 and SQLx for SQLite.
 
 ## 🧪 Verification evidence
+
+Experiment 009 adds seven framework tests (73 total) and extends the SQLite
+live suite to 30 checks. The general live suite retains 68 checks, for 98
+combined live checks. Format/build/check/test and strict Clippy cover the
+workspace and independent examples. The default facade still excludes SQLx.
+
+A fresh migration-demo example was also generated and exercised in its own
+directory: two pending versions applied, repeated application skipped both,
+and 11 live checks verified the task API, documentation, signals, and restart
+persistence. Its local database and .env remain ignored by Git.
+
+### Experiment 008 baseline
 
 Experiment 008 passed workspace build, format, check, test, and strict Clippy
 checks, including all features. Both independent examples were also checked.
@@ -136,7 +153,7 @@ unverified.
 ## 🚧 Current limitations
 
 - dev builds and runs; file watching and hot reload are not implemented.
-- SQLite uses one connection; PostgreSQL, migrations, and pool tuning are pending.
+- SQLite uses one connection; PostgreSQL, reversible migrations, and pool tuning are pending.
 - Example school/billing state is in memory; billing is not payment processing.
 - Custom validation rules are not automatically translated into OpenAPI.
 - Custom extractors, aliases, and dynamic response types have documentation limits.
@@ -146,21 +163,24 @@ unverified.
 - No established public-release compatibility policy or published crates.
 - Graceful shutdown has no forced deadline for permanently blocked handlers.
 
-## 🗺️ Proposed next phases
+## 🗺️ Current phase and proposed next phases
 
-### Experiment 009 — Versioned SQLite migrations
+### Experiment 009 — Versioned SQLite migrations (complete)
 
 Goal: evolve a database schema safely and repeatably.
 
-- [ ] Define ordered migration files and a schema-version table.
-- [ ] Apply pending migrations without reapplying completed ones.
-- [ ] Define transaction and failed-migration recovery behavior.
-- [ ] Add a small migration CLI workflow with clear errors.
-- [ ] Test fresh databases, repeated runs, upgrades, and failures.
-- [ ] Convert the notes example from startup DDL to migrations.
-- [ ] Document the workflow before release.
+- [x] Define ordered migration files and a schema-version table.
+- [x] Apply pending migrations without reapplying completed ones.
+- [x] Define transaction and failed-migration recovery behavior.
+- [x] Add a small migration CLI workflow with clear errors.
+- [x] Test fresh databases, repeated runs, upgrades, and failures.
+- [x] Convert the notes example from startup DDL to migrations.
+- [x] Document the workflow before release.
 
-The exact command names and interfaces remain undecided.
+Commands: `ruvoraq migrate` and `ruvoraq migrate --status`.
+The API offers Database::migrate and Database::migration_status.
+Reversible migrations, file generation, and cross-process coordination remain
+future work; scripts must leave transaction boundaries to the runner.
 
 ### Experiment 010 — Optional PostgreSQL
 
@@ -209,14 +229,17 @@ features are implemented by the current experiments.
 5. Prefer verified behavior and clear errors over broad untested APIs.
 6. Keep documentation examples aligned with executable examples.
 
-## 📦 Latest delivery
+## 📦 Experiment 009 delivery
 
-- [x] Implement and verify the local SQLite phase.
-- [x] Create user and developer guides and this progress tracker.
-- [x] Review the final local diff.
-- [x] Commit the selected changes when requested.
-- [x] Push when requested.
-- [x] Record the pushed implementation commit in this tracker.
+- [x] Implement ordered, checked, transactional SQLite migrations.
+- [x] Add migration status/apply commands.
+- [x] Upgrade the notes example and create the migration-first task demo.
+- [x] Verify migration behavior, real HTTP, and persistence.
+- [x] Update every maintained guide and example README.
+- [x] Review tracked files and keep local databases/.env out of the delivery.
+
+The migration implementation and documentation are delivered together in this
+revision. Consult Git history for the commit and remote branch state.
 
 Before a first public release, verify the minimum Rust toolchain, establish CI,
 review the public API, and resolve packaging and package ownership. Keep those

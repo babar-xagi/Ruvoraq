@@ -1104,3 +1104,87 @@ ruvoraq::bootstrap!(configure);
     assert!(output.stdout.is_empty());
     assert!(String::from_utf8_lossy(&output.stderr).contains("RUVORAQ_TEST_REQUIRED_LIMIT"));
 }
+
+#[test]
+fn migration_cli_applies_lists_and_validates_history() {
+    let temp = TempDir::new();
+    assert_success(&temp.run(&["new", "migration-demo"]));
+    let project = temp.0.join("migration-demo");
+    fs::create_dir(project.join("migrations")).unwrap();
+    fs::write(
+        project.join("migrations/1_create_values.sql"),
+        "CREATE TABLE values_table (value INTEGER);",
+    )
+    .unwrap();
+    fs::write(
+        project.join(".env"),
+        "DATABASE_URL=sqlite://values.sqlite\n",
+    )
+    .unwrap();
+    let command = |args: &[&str]| {
+        Command::new(env!("CARGO_BIN_EXE_ruvoraq"))
+            .current_dir(&project)
+            .env_remove("DATABASE_URL")
+            .args(args)
+            .output()
+            .unwrap()
+    };
+    let status = command(&["migrate", "--status"]);
+    assert_success(&status);
+    assert!(String::from_utf8_lossy(&status.stdout).contains("1  pending  create values"));
+    let output = command(&["migrate"]);
+    assert_success(&output);
+    assert!(String::from_utf8_lossy(&output.stdout).contains("Applied 1 migration(s)."));
+    let output = command(&["migrate"]);
+    assert_success(&output);
+    assert!(String::from_utf8_lossy(&output.stdout).contains("Applied 0 migration(s)."));
+    let status = command(&["migrate", "--status"]);
+    assert_success(&status);
+    assert!(String::from_utf8_lossy(&status.stdout).contains("1  applied"));
+    fs::write(
+        project.join("migrations/2_add_value.sql"),
+        "INSERT INTO values_table VALUES (42);",
+    )
+    .unwrap();
+    assert_success(&command(&["migrate"]));
+    fs::write(
+        project.join("migrations/1_create_values.sql"),
+        "CREATE TABLE changed (value TEXT);",
+    )
+    .unwrap();
+    assert_error(&command(&["migrate"]), "has changed");
+    fs::write(
+        project.join(".env"),
+        "DATABASE_URL=postgres://private-secret\n",
+    )
+    .unwrap();
+    let error = command(&["migrate"]);
+    assert_error(&error, "sqlite: scheme");
+    assert!(!String::from_utf8_lossy(&error.stderr).contains("private-secret"));
+}
+
+#[test]
+fn migration_cli_checks_project_environment_and_sources_before_opening_database() {
+    let temp = TempDir::new();
+    assert_success(&temp.run(&["migrate", "--help"]));
+    assert_error(&temp.run(&["migrate", "unexpected"]), "usage:");
+    assert_error(&temp.run(&["migrate"]), "project root");
+    assert_success(&temp.run(&["new", "migration-demo"]));
+    let project = temp.0.join("migration-demo");
+    let command = || {
+        Command::new(env!("CARGO_BIN_EXE_ruvoraq"))
+            .current_dir(&project)
+            .env_remove("DATABASE_URL")
+            .arg("migrate")
+            .output()
+            .unwrap()
+    };
+    assert_error(&command(), "DATABASE_URL");
+    fs::write(project.join(".env"), "DATABASE_URL=sqlite://never.sqlite\n").unwrap();
+    assert_error(&command(), "migrations directory");
+    assert!(!project.join("never.sqlite").exists());
+    fs::create_dir(project.join("migrations")).unwrap();
+    fs::write(project.join("migrations/malformed.sql"), "SELECT 1;").unwrap();
+    assert_error(&command(), "filenames");
+    assert!(!project.join("never.sqlite").exists());
+}

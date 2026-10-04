@@ -2,7 +2,7 @@
 
 Ruvoraq is an experimental Rust backend framework built around small applications,
 route attributes, and optional features. This guide describes the implementation
-through Experiment 008. The framework crates are currently used through local
+through Experiment 009. The framework crates are currently used through local
 path dependencies; they have not been published to crates.io.
 
 ## 🧭 Contents
@@ -15,6 +15,7 @@ path dependencies; they have not been published to crates.io.
 - [Application modules](#-application-modules)
 - [OpenAPI and Swagger UI](#-openapi-and-swagger-ui)
 - [SQLite persistence](#-sqlite-persistence)
+- [Versioned SQLite migrations](#-versioned-sqlite-migrations)
 - [Examples and troubleshooting](#-examples-and-troubleshooting)
 
 ## 🚀 Start an application
@@ -87,6 +88,7 @@ updating that path.
 | `ruvoraq --help` | Show supported commands. |
 | `ruvoraq --version` | Show the installed CLI version. |
 | `ruvoraq new <project-name>` | Create the protected three-file application. |
+| `ruvoraq migrate [--status]` | Apply or inspect numbered SQLite migrations. |
 | `ruvoraq dev` | Build and run the current marked application. |
 | `ruvoraq add app <module-name>` | Add and wire an optional application module. |
 
@@ -254,12 +256,12 @@ Framework errors use a consistent envelope:
 
 | Situation | Status |
 | --- | --- |
-| Invalid JSON, path, or query value | 400 |
+| Malformed JSON, path, or query value | 400 |
 | Missing route or resource | 404 |
 | Unsupported method | 405, with an Allow header |
 | JSON body over the default 2 MiB limit | 413 |
 | Unsupported JSON content type | 415 |
-| Application validation failure | 422 |
+| JSON field/type mismatch or application validation failure | 422 |
 | Internal failure | 500 |
 
 Framework 5xx errors return a generic internal error without private details.
@@ -443,13 +445,97 @@ and dropping an uncommitted transaction rolls it back. Database clones share
 the pool, so closing one closes the shared pool.
 
 The [complete SQLite example](../examples/sqlite-api/README.md) contains schema
-initialization, validated CRUD routes, and persistence tests. Its CREATE TABLE
-IF NOT EXISTS is initial setup, not a versioned migration system. PostgreSQL,
-an ORM, migration commands, and database scaffolding are future work.
+initialization, validated CRUD routes, and persistence tests. It uses numbered SQL files and
+startup migration checks. PostgreSQL, an ORM, reversible migrations, migration
+file generators, and database scaffolding are future work.
+
+## 🔄 Versioned SQLite migrations
+
+Experiment 009 adds forward-only migrations. Create a migrations/ directory in
+your application's root and add files with positive numeric versions:
+
+```text
+migrations/
+├── 0001_create_notes.sql
+└── 0002_notes_title_index.sql
+```
+
+Descriptions use lowercase ASCII letters, digits, and underscores. Versions
+must be unique; files run in numeric order, not alphabetical order.
+A first migration might contain:
+
+```sql
+CREATE TABLE notes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL
+);
+```
+
+A later file can add an index:
+
+```sql
+CREATE INDEX notes_title_index ON notes(title);
+```
+
+Set DATABASE_URL in the process environment or the application's .env:
+
+```dotenv
+DATABASE_URL=sqlite://notes.sqlite
+```
+
+From the marked application root:
+
+```sh
+ruvoraq migrate --status
+ruvoraq migrate
+ruvoraq migrate --status
+```
+
+Status lists each version as pending or applied. It validates history without
+running migration SQL or creating the history table. Opening the SQLite
+connection may create a missing database file. The CLI uses its own SQLite
+adapter and does not compile your application or run its configure hook.
+
+For automatic startup migrations, add this line after connecting Database in
+your existing async configure hook:
+
+```rust
+database.migrate("migrations").await?;
+```
+
+Do not add a second bootstrap invocation. Enable the sqlite application feature
+when using this API. The three-file generator remains unchanged; migrations/
+is created deliberately when persistence needs it.
+
+SQLx stores versions and checksums in _sqlx_migrations. Repeated runs skip applied
+files. Changed or missing applied files, duplicate versions, malformed SQL file
+names, and newly inserted older versions fail before pending SQL is applied.
+Non-SQL files are ignored. SQL symlink entries, empty files, and reversible
+.up.sql/.down.sql files are refused.
+
+Each file runs in its own transaction. If a file fails, its ordinary transactional
+SQL changes roll back while earlier successful files remain committed. Fix the
+unapplied file and retry. Keep applied files unchanged; put subsequent changes
+in a new, higher version. Do not edit database history to bypass checks.
+
+The runner owns transaction boundaries. Scripts must not contain BEGIN, COMMIT,
+ROLLBACK, or other transaction-control statements; non-transactional directives
+are unsupported. Run one migrator at a time. There is no cross-process migration
+coordinator in this phase.
+
+Startup loads files relative to the current working directory. Ship migrations/
+with the application and run from the intended project root. A missing or empty
+directory is an error. The CLI requires DATABASE_URL explicitly, even if an
+application hook has its own fallback.
+
+The notes example's first migration uses CREATE TABLE IF NOT EXISTS to preserve
+the known Experiment 008 notes schema. This is not general schema detection or
+an automatic baseline for arbitrary legacy databases.
 
 ## 🧪 Examples and troubleshooting
 
-Run one example at a time on the default port:
+The general API and notes examples use port 8000. Run one at a time on that
+port or override RUVORAQ_PORT:
 
 ```sh
 cd /home/xagi/Ruvoraq/examples/app
@@ -469,12 +555,34 @@ ruvoraq dev
 This application exposes /notes and /notes/{id}; records persist across restarts
 in notes.sqlite unless DATABASE_URL selects another database.
 
+For a migration-first walkthrough, use the
+[task example](../examples/migration-demo/README.md):
+
+```sh
+cd /home/xagi/Ruvoraq/examples/migration-demo
+cp -n .env.example .env
+ruvoraq migrate --status
+ruvoraq migrate
+ruvoraq migrate --status
+ruvoraq migrate
+ruvoraq dev
+```
+
+On a fresh database, the first apply reports two migrations and the repeat
+reports zero. Open http://127.0.0.1:8010/docs. GET /tasks lists persistent tasks,
+POST /tasks creates one, and GET /tasks/{id} reads one. The local tasks.sqlite
+file is ignored by Git. Its .env selects the same database for the CLI and
+server, so both use the same version history.
+
 Live tests, run from the framework root:
 
 ```sh
 python3 examples/app/tests/smoke.py
 python3 examples/sqlite-api/tests/smoke.py
 ```
+
+The general suite performs 68 checks and the notes suite performs 30.
+The task demo was additionally verified with 11 direct live checks.
 
 | Issue | What to check |
 | --- | --- |
@@ -484,6 +592,8 @@ python3 examples/sqlite-api/tests/smoke.py
 | Missing service at startup | Register the exact Inject<T> type in configure. |
 | JSON request is rejected | Check Content-Type, field types, body size, and validation. |
 | Documentation status differs from HTTP | Match attribute metadata to the actual response helper. |
+| Migration CLI reports missing DATABASE_URL | Set it in the environment or project .env; the CLI does not run configure. |
+| Applied migration has changed | Restore the original file; append a new version for changes. |
 | Database connection fails | Check the sqlite: URL, parent directory, and permissions. |
 | Generated dependency path is missing | Update the local Ruvoraq path after moving the checkout. |
 

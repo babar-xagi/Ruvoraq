@@ -1,9 +1,13 @@
-# Fresh Ruvoraq example
+# Typed API and shared-service example
 
-Generated with the installed Experiment 005 CLI, then expanded with school and
-billing modules. main.rs remains the original hello handler; settings.rs owns
-configuration and provider registration. Experiment 007 adds optional environment
-overrides and a fallible configure hook.
+This application demonstrates school and billing modules, typed requests,
+validation, response helpers, shared services, OpenAPI, and environment
+configuration. main.rs keeps the initial greeting; settings.rs owns application
+composition and provider registration.
+
+This example intentionally stores state in memory. For SQLite and migrations,
+see the [notes API](../sqlite-api/README.md) or
+[migration-first task demo](../migration-demo/README.md).
 
 Run inside WSL:
 
@@ -15,7 +19,7 @@ ruvoraq dev
 Optional file configuration (not needed for the defaults):
 
 ```sh
-cp .env.example .env
+cp -n .env.example .env
 # Edit .env, or override individual values:
 RUVORAQ_PORT=9000 SCHOOL_GREETING="Hello from configuration" ruvoraq dev
 ```
@@ -66,10 +70,13 @@ Run the repeatable live test:
 python3 tests/smoke.py
 ```
 
-The test uses the installed CLI and runs servers on available local ports from a
+The suite performs 68 live checks using the installed CLI and servers on available
+local ports from a
 temporary copy. It checks status helpers, CRUD, path/query/header handling,
-OpenAPI schemas, offline Swagger assets, validation, body limits, JSON errors, concurrent state, provider checks, CLI
-protections, dotenv/process precedence, redacted startup errors, SIGINT and SIGTERM. It does not edit this example's source/settings.
+OpenAPI schemas, offline Swagger assets, validation, body limits, JSON errors,
+concurrent state, provider checks, CLI protections, dotenv/process precedence,
+redacted startup errors, SIGINT and SIGTERM. It does not edit this example's
+source/settings.
 
 Verify both the framework and this independent application:
 
@@ -84,3 +91,6 @@ cargo build --manifest-path examples/app/Cargo.toml --locked
 cargo clippy --manifest-path examples/app/Cargo.toml --all-targets --locked -- -D warnings
 python3 examples/app/tests/smoke.py
 ```
+
+See the [user guide](../../doc/user_guid.md) and
+[developer guide](../../doc/developer_guid.md) for the full API and workflow.

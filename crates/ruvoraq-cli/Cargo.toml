@@ -14,3 +14,6 @@ path = "src/main.rs"
 [dependencies]
 toml.workspace = true
 syn.workspace = true
+ruvoraq-config = { path = "../ruvoraq-config" }
+ruvoraq-db = { path = "../ruvoraq-db" }
+tokio.workspace = true

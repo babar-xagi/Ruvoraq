@@ -18,7 +18,7 @@ use std::{future::Future, io};
 
 pub use ruvoraq_config::Env;
 #[cfg(feature = "sqlite")]
-pub use ruvoraq_db::{Database, sqlx};
+pub use ruvoraq_db::{Database, MigrationStatus, Migrations, sqlx};
 
 pub use ruvoraq_macros::{bootstrap, delete, get, patch, post, put, schema};
 pub use ruvoraq_web::schemars;
@@ -53,7 +53,7 @@ pub mod prelude {
         patch, post, put, run, schema,
     };
     #[cfg(feature = "sqlite")]
-    pub use crate::{Database, sqlx};
+    pub use crate::{Database, MigrationStatus, Migrations, sqlx};
 }
 
 /// Implementation details used by generated code, not a stable application API.
