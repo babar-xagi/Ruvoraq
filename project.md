@@ -10,12 +10,12 @@ proposals, not delivered features or promised release dates.
 ## 📍 Current position
 
 - Version: 0.1.0, experimental local development.
-- Latest pushed work: Experiment 007, typed configuration and dotenv loading.
-- Last pushed commit: 75181c1f7495c8038ce55f51b5b097ccf1cdb1fb.
-- Experiment 008: SQLite and async setup implemented and verified locally.
-- Experiment 008 and this documentation update: not yet committed or pushed.
+- Latest pushed implementation: Experiment 008, optional SQLite and async setup.
+- Implementation and guides commit: cb79bb6 (pushed to origin/main).
+- Experiment 008: implemented, verified, committed, and pushed.
+- User/developer guides and project tracking: included in the pushed update.
 - Framework crates: not published to crates.io.
-- Current focus: document the implemented API before the next push.
+- Current focus: select the next narrow experiment from the proposed roadmap.
 
 The current foundation is functional and tested. It is not yet a complete
 production platform with authentication, migrations, operations tooling, or AI.
@@ -31,7 +31,7 @@ production platform with authentication, migrations, operations tooling, or AI.
 | 005 — Services | Per-application shared services and typed Inject<T>. | Pushed |
 | 006 — API documentation | Automatic OpenAPI 3.1, offline Swagger UI, API testing UI and screenshot. | Pushed |
 | 007 — Configuration | Typed environment snapshots, optional dotenv, built-in settings overrides. | Pushed |
-| 008 — SQLite | Optional database feature, bound SQL, transactions, async setup, durable notes example. | Local; verified; awaiting commit/push |
+| 008 — SQLite | Optional database feature, bound SQL, transactions, async setup, durable notes example. | Pushed |
 
 These experiments extend one framework; their numbers record actual work.
 Earlier experiment limitations should not be read as current feature limits.
@@ -209,14 +209,14 @@ features are implemented by the current experiments.
 5. Prefer verified behavior and clear errors over broad untested APIs.
 6. Keep documentation examples aligned with executable examples.
 
-## 📦 Before the next push
+## 📦 Latest delivery
 
 - [x] Implement and verify the local SQLite phase.
 - [x] Create user and developer guides and this progress tracker.
-- [ ] Review the final local diff.
-- [ ] Commit the selected changes when requested.
-- [ ] Push when requested.
-- [ ] Update this tracker to record the new pushed commit.
+- [x] Review the final local diff.
+- [x] Commit the selected changes when requested.
+- [x] Push when requested.
+- [x] Record the pushed implementation commit in this tracker.
 
 Before a first public release, verify the minimum Rust toolchain, establish CI,
 review the public API, and resolve packaging and package ownership. Keep those
