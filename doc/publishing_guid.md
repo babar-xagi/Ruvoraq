@@ -1,7 +1,8 @@
 # Publishing Ruvoraq to crates.io
 
-The next coordinated release is **0.2.0**. The previous 0.1.0 release remains
-available; upload verification for the new release follows the same workflow. The existing Git tag
+All six packages are **published as 0.2.0**. The previous 0.1.0 release remains
+available. Public CLI installation, portable projects and middleware behavior
+have been independently verified. The existing Git tag
 `0.01` is a repository label; Cargo package versions use semantic versioning.
 Publishing preparation adds versioned internal dependencies, per-crate metadata,
 README/license files and portable registry-based project generation.

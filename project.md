@@ -9,13 +9,13 @@ proposals, not delivered features or promised release dates.
 
 ## 📍 Current position
 
-- Version: 0.2.0, experimental middleware release preparation.
+- Version: 0.2.0, published experimental release.
 - Current implementation: Experiment 011, middleware and observability.
 - Delivery includes Experiment 010 and the fresh comprehensive example; see Git history.
 - One runnable example: school/billing APIs with SQLite or PostgreSQL notes.
 - Verification: 92 regular tests per configuration, five real PostgreSQL tests,
   and 146 automated live checks, plus direct fresh-example migration/restart checks.
-- Framework crates: all six packages published to crates.io as 0.1.0.
+- Framework crates: all six packages published to crates.io as 0.2.0.
 - Next proposed phase: application testing helpers and operational shutdown limits.
 - Delivery identifiers and branch publication are recorded in Git history.
 
@@ -36,7 +36,7 @@ production platform with authentication, complete operations tooling, or AI.
 | 008 — SQLite | Optional database feature, bound SQL, transactions, async setup, durable notes example. | Pushed |
 | 009 — Migrations | Ordered SQL files, checksums, history validation, transactions, CLI status/apply, startup migrations. | Pushed |
 | 010 — PostgreSQL | Opt-in provider, transactions, migration locks, feature-aware CLI, real-server tests, and example. | Published |
-| 011 — Middleware | Request IDs, tracing, CORS, timeouts, coverage gate and CI/release automation. | Implemented; verifying release |
+| 011 — Middleware | Request IDs, tracing, CORS, timeouts, coverage gate and CI/release automation. | Published; CI verified |
 
 These experiments extend one framework; their numbers record actual work.
 Earlier experiment limitations should not be read as current feature limits.
@@ -325,8 +325,18 @@ The published package source is tagged v0.1.0 at commit d00392c.
 - [x] Make the example dependency portable instead of using a machine-specific path.
 - [x] Add a measured 100% middleware coverage gate and automated CI.
 - [x] Explain concepts with clean guides, emojis and complete examples.
-- [ ] Publish and independently verify all six 0.2.0 packages.
-- [ ] Push v0.2.0 and verify automated GitHub release-note publication.
+- [x] Publish and independently verify all six 0.2.0 packages.
+- [x] Push v0.2.0 and verify automated GitHub release-note publication.
 
 Coverage boundaries are recorded in [coverage.md](doc/coverage.md); whole-workspace
 coverage is not claimed to be 100%. [Release notes](doc/releases/v0.2.0.md).
+
+
+### ✅ Verified 0.2.0 delivery
+
+Published source/tag: 5f88f1d / v0.2.0. All four GitHub CI jobs passed, including
+MSRV and the middleware coverage gate. Release-note automation passed and the
+[GitHub release](https://github.com/babar-xagi/Ruvoraq/releases/tag/v0.2.0) is live.
+A separate registry CLI installation verified the portable generator, optional
+backend builds, middleware behavior, OpenAPI/Swagger and module generation.
+Coverage: 100% middleware lines/functions/regions; whole workspace 88.52% lines.
