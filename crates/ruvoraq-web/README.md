@@ -8,7 +8,7 @@ through the public `ruvoraq` facade.
 Swagger JavaScript/CSS and their upstream license are included in the package.
 No CDN is required to serve the API testing interface.
 
-This is an experimental 0.1.0 release. The framework is developed in verified
+This is an experimental 0.2.0 release. The framework is developed in verified
 increments and is not yet a complete production platform.
 
 Documentation: [user guide](https://github.com/babar-xagi/Ruvoraq/blob/main/doc/user_guid.md),
@@ -16,3 +16,6 @@ Documentation: [user guide](https://github.com/babar-xagi/Ruvoraq/blob/main/doc/
 [testing guide](https://github.com/babar-xagi/Ruvoraq/blob/main/doc/testing_guid.md).
 
 Licensed under Apache-2.0. Source: [Ruvoraq](https://github.com/babar-xagi/Ruvoraq).
+
+🔎 Experiment 011 adds request IDs, structured tracing, explicit CORS and request
+timeouts. Read the [middleware guide](https://github.com/babar-xagi/Ruvoraq/blob/main/doc/middleware_guid.md).

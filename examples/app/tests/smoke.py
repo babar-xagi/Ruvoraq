@@ -287,6 +287,8 @@ def main():
         for name in ["Cargo.toml", "Cargo.lock"]:
             if (APP / name).exists():
                 shutil.copy2(APP / name, project / name)
+        manifest_path = project / "Cargo.toml"
+        manifest_path.write_text(manifest_path.read_text().replace('path = "../../crates/ruvoraq"', 'path = "' + str((APP / "../../crates/ruvoraq").resolve()) + '"'))
         before = fingerprint(project)
         for command, cwd, expected_error in [
             ([CLI, "new", "app"], temporary, "not empty"),

@@ -27,9 +27,9 @@ pub use ruvoraq_db::{MigrationStatus, Migrations, sqlx};
 pub use ruvoraq_macros::{bootstrap, delete, get, patch, post, put, schema};
 pub use ruvoraq_web::schemars;
 pub use ruvoraq_web::{
-    App, Error, HeaderMap, Inject, IntoResponse, Json, Path, Query, Reply, Response, Result,
-    Settings, StatusCode, Validate, ValidatedJson, accepted, bad_request, created, invalid,
-    no_content, not_found, ok,
+    App, Cors, Error, HeaderMap, Inject, IntoResponse, Json, Path, Query, Reply, RequestId,
+    Response, Result, Settings, StatusCode, Validate, ValidatedJson, accepted, bad_request,
+    created, init_logging, invalid, no_content, not_found, ok,
 };
 pub use serde;
 pub use serde::{Deserialize, Serialize};
@@ -55,10 +55,10 @@ pub mod prelude {
     #[cfg(feature = "postgres")]
     pub use crate::PostgresDatabase;
     pub use crate::{
-        App, Deserialize, Env, Error, HeaderMap, Inject, IntoResponse, Json, Path, Query, Reply,
-        Response, Result, Serialize, Settings, StatusCode, Validate, ValidatedJson, Value,
-        accepted, bad_request, created, delete, get, invalid, json, no_content, not_found, ok,
-        patch, post, put, run, schema,
+        App, Cors, Deserialize, Env, Error, HeaderMap, Inject, IntoResponse, Json, Path, Query,
+        Reply, RequestId, Response, Result, Serialize, Settings, StatusCode, Validate,
+        ValidatedJson, Value, accepted, bad_request, created, delete, get, init_logging, invalid,
+        json, no_content, not_found, ok, patch, post, put, run, schema,
     };
     #[cfg(any(feature = "sqlite", feature = "postgres"))]
     pub use crate::{MigrationStatus, Migrations, sqlx};

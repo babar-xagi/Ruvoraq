@@ -393,6 +393,7 @@ pub fn bootstrap(input: TokenStream) -> TokenStream {
                 let env = ::ruvoraq::Env::load()?;
                 let app = ::ruvoraq::App::auto()?.settings(settings()).environment(env)?;
                 #configure
+                if app.logging_enabled() { ::ruvoraq::init_logging(); }
                 app.run().await
             })
         }

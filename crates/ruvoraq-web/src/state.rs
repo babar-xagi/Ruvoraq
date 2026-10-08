@@ -11,7 +11,7 @@ use axum::{extract::FromRequestParts, http::request::Parts};
 use crate::{Error, Result};
 
 /// A shared application service. Construct providers in settings.rs and receive
-/// them in handlers as Inject<T>. T does not have to implement Clone.
+/// them in handlers as `Inject<T>`. T does not have to implement Clone.
 pub struct Inject<T>(pub Arc<T>);
 
 impl<T> Inject<T> {

@@ -1,0 +1,33 @@
+name: 🚀 Publish GitHub release notes
+"on":
+  push:
+    tags: ["v*"]
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Validate release metadata
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          import tomllib
+          version=tomllib.loads(Path("Cargo.toml").read_text())["workspace"]["package"]["version"]
+          assert os.environ["RELEASE_TAG"] == "v"+version
+          assert Path("doc/releases/"+os.environ["RELEASE_TAG"]+".md").is_file()
+          PY
+      - name: Publish release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --notes-file "doc/releases/$RELEASE_TAG.md"
+          else
+            gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --title "Ruvoraq $RELEASE_TAG — Middleware & Observability" --notes-file "doc/releases/$RELEASE_TAG.md" --latest
+          fi

@@ -32,7 +32,7 @@ fn invalid(message: impl Into<String>) -> io::Error {
 }
 
 impl Migrations {
-    /// Load forward-only files named <positive-version>_<lowercase_description>.sql.
+    /// Load forward-only files named `<positive-version>_<lowercase_description>.sql`.
     /// Non-SQL files are ignored. Duplicate versions and malformed SQL filenames fail.
     pub async fn load(directory: impl AsRef<Path>) -> io::Result<Self> {
         let directory = directory.as_ref();

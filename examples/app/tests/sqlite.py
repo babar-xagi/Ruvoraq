@@ -24,6 +24,8 @@ def main():
         shutil.copytree(APP/"src",project/"src",copy_function=shutil.copy)
         shutil.copytree(APP/"migrations/sqlite",project/"migrations")
         for name in ["Cargo.toml","Cargo.lock"]:shutil.copy2(APP/name,project/name)
+        manifest_path = project / "Cargo.toml"
+        manifest_path.write_text(manifest_path.read_text().replace('path = "../../crates/ruvoraq"', 'path = "' + str((APP / "../../crates/ruvoraq").resolve()) + '"'))
         environment=os.environ.copy()
         for key in ["RUVORAQ_APP_NAME","RUVORAQ_HOST","RUVORAQ_PORT","RUVORAQ_DOCS","DATABASE_URL", "MIGRATIONS_DIR"]:
             environment.pop(key,None)

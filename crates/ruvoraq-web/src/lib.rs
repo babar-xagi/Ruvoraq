@@ -2,6 +2,7 @@
 
 mod error;
 mod extract;
+mod middleware;
 mod openapi;
 mod reply;
 mod respond;
@@ -19,6 +20,7 @@ pub use axum::http::{HeaderMap, StatusCode};
 pub use axum::response::{IntoResponse, Response};
 pub use error::{Error, Result};
 pub use extract::{Json, Path, Query, Validate, ValidatedJson};
+pub use middleware::{Cors, RequestId, init_logging};
 #[doc(hidden)]
 pub use openapi::{DescribeSchema, SchemaProbe, operation, parameters};
 pub use reply::{Reply, accepted, bad_request, created, invalid, no_content, not_found, ok};
@@ -77,6 +79,7 @@ pub struct App {
     docs_enabled: bool,
     route_paths: Vec<String>,
     environment: Env,
+    policy: middleware::Policy,
 }
 
 impl Default for App {
@@ -90,6 +93,7 @@ impl Default for App {
             docs_enabled: true,
             route_paths: Vec::new(),
             environment: Env::default(),
+            policy: middleware::Policy::default(),
         }
     }
 }
@@ -168,13 +172,16 @@ impl App {
             let document = self.openapi();
             self.router = openapi::mount(self.router, document);
         }
-        self.router
+        let policy = self.policy;
+        let router = self
+            .router
             .fallback(|| async { Error::not_found("Route not found") })
             .method_not_allowed_fallback(|| async { Error::method_not_allowed() })
             .layer(CatchPanicLayer::custom(
                 |_: Box<dyn std::any::Any + Send>| Error::internal().into_response(),
             ))
-            .layer(axum::Extension(Arc::new(self.services)))
+            .layer(axum::Extension(Arc::new(self.services)));
+        middleware::apply(router, policy)
     }
 
     /// Register one shared instance of a concrete service type.
@@ -192,6 +199,7 @@ impl App {
 
     /// Validate dependencies of attribute-registered routes without binding.
     pub fn check(&self) -> io::Result<()> {
+        self.policy.validate()?;
         if self.docs_enabled {
             for path in &self.route_paths {
                 if openapi::reserved(path) {
@@ -216,11 +224,17 @@ impl App {
         Ok(())
     }
 
-    /// Apply a configuration snapshot, then expose it through env() and Inject<Env>.
+    /// Apply a configuration snapshot, then expose it through `env()` and `Inject<Env>`.
     /// Bootstrap calls this automatically; explicit App builders opt in.
     pub fn environment(mut self, env: Env) -> io::Result<Self> {
         self.settings = self.settings.with_env(&env)?;
         self.docs_enabled = env.get_or("RUVORAQ_DOCS", self.docs_enabled)?;
+        self.policy.ids = env.get_or("RUVORAQ_REQUEST_ID", self.policy.ids)?;
+        self.policy.logging = env.get_or("RUVORAQ_REQUEST_LOG", self.policy.logging)?;
+        if let Some(milliseconds) = env.optional::<u64>("RUVORAQ_REQUEST_TIMEOUT_MS")? {
+            self.policy.timeout = Some(std::time::Duration::from_millis(milliseconds));
+        }
+        self.policy.validate()?;
         self.environment = env.clone();
         Ok(self.provide(env))
     }
@@ -228,6 +242,39 @@ impl App {
     /// Read custom configuration in a configure hook without loading files again.
     pub fn env(&self) -> &Env {
         &self.environment
+    }
+
+    /// Enable/disable validated request IDs (enabled by default).
+    pub fn request_ids(mut self, enabled: bool) -> Self {
+        self.policy.ids = enabled;
+        self
+    }
+
+    /// Emit structured tracing events. Bootstrap initializes JSON logging when enabled.
+    pub fn request_logging(mut self, enabled: bool) -> Self {
+        self.policy.logging = enabled;
+        self
+    }
+
+    pub fn logging_enabled(&self) -> bool {
+        self.policy.logging
+    }
+
+    /// Bound time until response headers; streaming bodies and blocking work are not bounded.
+    pub fn request_timeout(mut self, duration: std::time::Duration) -> Self {
+        self.policy.timeout = Some(duration);
+        self
+    }
+
+    pub fn without_request_timeout(mut self) -> Self {
+        self.policy.timeout = None;
+        self
+    }
+
+    /// Apply an explicit browser-origin policy.
+    pub fn cors(mut self, cors: Cors) -> Self {
+        self.policy.cors = Some(cors);
+        self
     }
 
     /// Disable built-in documentation endpoints, for example in production.

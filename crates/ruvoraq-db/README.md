@@ -5,10 +5,10 @@ parameterized queries, transactions and checked forward-only migrations.
 
 ```toml
 # SQLite is the default adapter feature.
-ruvoraq-db = "0.1.0"
+ruvoraq-db = "0.2.0"
 
 # For PostgreSQL alone, use instead:
-# ruvoraq-db = { version = "0.1.0", default-features = false, features = ["postgres"] }
+# ruvoraq-db = { version = "0.2.0", default-features = false, features = ["postgres"] }
 ```
 
 `Database` is the SQLite adapter; `PostgresDatabase` is available with the
@@ -20,7 +20,7 @@ Applied versions/checksums are validated before changes; each file is
 transactional. PostgreSQL migrations use advisory locks. SQLite requires a
 single migrator at a time. There is no ORM or reversible migration system.
 
-This is an experimental 0.1.0 release. The framework is developed in verified
+This is an experimental 0.2.0 release. The framework is developed in verified
 increments and is not yet a complete production platform.
 
 Documentation: [user guide](https://github.com/babar-xagi/Ruvoraq/blob/main/doc/user_guid.md),
@@ -28,3 +28,6 @@ Documentation: [user guide](https://github.com/babar-xagi/Ruvoraq/blob/main/doc/
 [testing guide](https://github.com/babar-xagi/Ruvoraq/blob/main/doc/testing_guid.md).
 
 Licensed under Apache-2.0. Source: [Ruvoraq](https://github.com/babar-xagi/Ruvoraq).
+
+🔎 Experiment 011 adds request IDs, structured tracing, explicit CORS and request
+timeouts. Read the [middleware guide](https://github.com/babar-xagi/Ruvoraq/blob/main/doc/middleware_guid.md).

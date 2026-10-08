@@ -18,7 +18,8 @@ sqlite = ["ruvoraq/sqlite"]
 postgres = ["ruvoraq/postgres"]
 
 [dependencies.ruvoraq]
-path = "/home/xagi/Ruvoraq/crates/ruvoraq"
+version = "0.2.0"
+path = "../../crates/ruvoraq"
 
 [dependencies.serde]
 version = "1.0.229"

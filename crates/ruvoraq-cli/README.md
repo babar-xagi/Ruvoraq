@@ -3,7 +3,7 @@
 Generate, organize, run and migrate Ruvoraq Rust API projects.
 
 ```bash
-cargo install ruvoraq-cli --version 0.1.0 --locked
+cargo install ruvoraq-cli --version 0.2.0 --locked
 ruvoraq --help
 ruvoraq new hello_api
 cd hello_api
@@ -19,7 +19,7 @@ Development mode builds/runs with Cargo; file watching is not implemented.
 
 ```bash
 # Optional PostgreSQL migration support in the CLI:
-cargo install ruvoraq-cli --version 0.1.0 --features postgres --locked
+cargo install ruvoraq-cli --version 0.2.0 --features postgres --locked
 ```
 
 Migration commands require `DATABASE_URL`. `MIGRATIONS_DIR` defaults to
@@ -27,7 +27,7 @@ Migration commands require `DATABASE_URL`. `MIGRATIONS_DIR` defaults to
 For framework source development, set `RUVORAQ_FRAMEWORK_PATH` to the local
 `crates/ruvoraq` directory before running `new`; otherwise no checkout is needed.
 
-This is an experimental 0.1.0 release. The framework is developed in verified
+This is an experimental 0.2.0 release. The framework is developed in verified
 increments and is not yet a complete production platform.
 
 Documentation: [user guide](https://github.com/babar-xagi/Ruvoraq/blob/main/doc/user_guid.md),
@@ -35,3 +35,6 @@ Documentation: [user guide](https://github.com/babar-xagi/Ruvoraq/blob/main/doc/
 [testing guide](https://github.com/babar-xagi/Ruvoraq/blob/main/doc/testing_guid.md).
 
 Licensed under Apache-2.0. Source: [Ruvoraq](https://github.com/babar-xagi/Ruvoraq).
+
+🔎 Experiment 011 adds request IDs, structured tracing, explicit CORS and request
+timeouts. Read the [middleware guide](https://github.com/babar-xagi/Ruvoraq/blob/main/doc/middleware_guid.md).

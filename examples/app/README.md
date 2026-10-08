@@ -1,6 +1,6 @@
 # 🦀 Comprehensive Ruvoraq example
 
-One fresh application covers Experiments 001–010: typed routes, validation,
+One fresh application covers Experiments 001–011: typed routes, validation,
 status helpers, services, configuration, offline Swagger, SQLite/PostgreSQL and
 versioned migrations. `src/main.rs` contains the greeting route;
 `src/settings.rs` handles configuration, database startup and providers.
@@ -34,3 +34,16 @@ all commands, expected responses, your own new project, manual CRUD, migration
 recovery tests, configuration and PostgreSQL setup. There is no database
 scaffolding command yet; the comprehensive example deliberately adds these
 modules after the three-file generator.
+
+
+## 🔎 Middleware defaults in this example
+
+Request IDs are enabled; JSON request logs, a two-second timeout and the browser
+origin http://localhost:3000 are configured in settings.rs. Override logging and
+timeout through RUVORAQ_REQUEST_LOG/RUVORAQ_REQUEST_TIMEOUT_MS and the frontend
+through FRONTEND_ORIGIN. The configure hook reads these values when choosing
+defaults. Request IDs can be disabled with RUVORAQ_REQUEST_ID=false.
+
+See the [middleware guide](../../doc/middleware_guid.md) for browser headers,
+tracing context and deadline limits. tests/middleware.py checks real CLI-launched
+HTTP behavior on temporary copies; the slow fixture is not part of this app.

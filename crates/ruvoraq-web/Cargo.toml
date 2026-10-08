@@ -13,15 +13,19 @@ keywords = ["ruvoraq", "backend", "web", "api"]
 categories = ["web-programming::http-server", "development-tools"]
 
 [dependencies]
-ruvoraq-config = { version = "0.1.0", path = "../ruvoraq-config" }
+ruvoraq-config = { version = "0.2.0", path = "../ruvoraq-config" }
 axum.workspace = true
 inventory.workspace = true
-tokio.workspace = true
+tokio = { workspace = true, features = ["time"] }
 serde.workspace = true
 serde_json.workspace = true
 tower-http.workspace = true
 
 schemars.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+uuid.workspace = true
+tower.workspace = true
 
 [dev-dependencies]
-tokio = { workspace = true, features = ["macros", "io-util", "sync", "time"] }
+tokio = { workspace = true, features = ["macros", "io-util", "sync", "time", "test-util"] }

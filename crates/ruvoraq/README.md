@@ -6,7 +6,7 @@ helpers, shared services, typed environment configuration and OpenAPI 3.1 with
 locally bundled Swagger UI. SQLite/PostgreSQL are opt-in features.
 
 ```bash
-cargo install ruvoraq-cli --version 0.1.0 --locked
+cargo install ruvoraq-cli --version 0.2.0 --locked
 ruvoraq new hello_api
 cd hello_api
 ruvoraq dev
@@ -29,7 +29,7 @@ The settings file owns bootstrap/startup. Open `/docs` for Swagger UI or
 
 ```toml
 [dependencies]
-ruvoraq = "0.1.0"
+ruvoraq = "0.2.0"
 ```
 
 Optional features: `sqlite` exports `Database`; `postgres` exports
@@ -40,7 +40,7 @@ Use `created(value)` for HTTP 201, `accepted(value)` for 202, and `no_content()`
 for 204. Route status metadata documents responses; helpers determine runtime
 HTTP status. Use `ValidatedJson<T>` with an explicit `Validate` implementation.
 
-This is an experimental 0.1.0 release. The framework is developed in verified
+This is an experimental 0.2.0 release. The framework is developed in verified
 increments and is not yet a complete production platform.
 
 Documentation: [user guide](https://github.com/babar-xagi/Ruvoraq/blob/main/doc/user_guid.md),
@@ -48,3 +48,6 @@ Documentation: [user guide](https://github.com/babar-xagi/Ruvoraq/blob/main/doc/
 [testing guide](https://github.com/babar-xagi/Ruvoraq/blob/main/doc/testing_guid.md).
 
 Licensed under Apache-2.0. Source: [Ruvoraq](https://github.com/babar-xagi/Ruvoraq).
+
+🔎 Experiment 011 adds request IDs, structured tracing, explicit CORS and request
+timeouts. Read the [middleware guide](https://github.com/babar-xagi/Ruvoraq/blob/main/doc/middleware_guid.md).

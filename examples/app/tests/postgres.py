@@ -33,6 +33,8 @@ def main():
         shutil.copytree(APP / "migrations/postgres", project / "migrations")
         for name in ["Cargo.toml", "Cargo.lock"]:
             shutil.copy2(APP / name, project / name)
+        manifest_path = project / "Cargo.toml"
+        manifest_path.write_text(manifest_path.read_text().replace('path = "../../crates/ruvoraq"', 'path = "' + str((APP / "../../crates/ruvoraq").resolve()) + '"'))
         (project / "Cargo.toml").write_text((project / "Cargo.toml").read_text().replace('default = ["sqlite"]', 'default = ["postgres"]'))
         environment = os.environ.copy()
         for key in ["RUVORAQ_APP_NAME", "RUVORAQ_HOST", "RUVORAQ_PORT", "RUVORAQ_DOCS", "DATABASE_URL", "MIGRATIONS_DIR"]:

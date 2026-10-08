@@ -15,6 +15,7 @@ categories = ["web-programming::http-server", "development-tools"]
 [[bin]]
 name = "ruvoraq"
 path = "src/main.rs"
+doc = false
 
 [features]
 default = []
@@ -23,6 +24,6 @@ postgres = ["ruvoraq-db/postgres"]
 [dependencies]
 toml.workspace = true
 syn.workspace = true
-ruvoraq-config = { version = "0.1.0", path = "../ruvoraq-config" }
-ruvoraq-db = { version = "0.1.0", path = "../ruvoraq-db" }
+ruvoraq-config = { version = "0.2.0", path = "../ruvoraq-config" }
+ruvoraq-db = { version = "0.2.0", path = "../ruvoraq-db" }
 tokio.workspace = true

@@ -18,10 +18,10 @@ sqlite = ["dep:ruvoraq-db", "ruvoraq-db/sqlite"]
 postgres = ["dep:ruvoraq-db", "ruvoraq-db/postgres"]
 
 [dependencies]
-ruvoraq-db = { version = "0.1.0", path = "../ruvoraq-db", optional = true, default-features = false }
-ruvoraq-config = { version = "0.1.0", path = "../ruvoraq-config" }
-ruvoraq-web = { version = "0.1.0", path = "../ruvoraq-web" }
-ruvoraq-macros = { version = "0.1.0", path = "../ruvoraq-macros" }
+ruvoraq-db = { version = "0.2.0", path = "../ruvoraq-db", optional = true, default-features = false }
+ruvoraq-config = { version = "0.2.0", path = "../ruvoraq-config" }
+ruvoraq-web = { version = "0.2.0", path = "../ruvoraq-web" }
+ruvoraq-macros = { version = "0.2.0", path = "../ruvoraq-macros" }
 tokio.workspace = true
 serde.workspace = true
 serde_json.workspace = true

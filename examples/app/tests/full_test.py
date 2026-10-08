@@ -28,14 +28,15 @@ def main():
     if not shutil.which("cargo") or not shutil.which("ruvoraq"):
         parser.error("Install Rust and the current Ruvoraq CLI; run inside WSL/Linux.")
     environment = os.environ.copy()
-    for name in ["DATABASE_URL", "MIGRATIONS_DIR", "RUVORAQ_HOST", "RUVORAQ_PORT", "RUVORAQ_DOCS", "RUVORAQ_APP_NAME", "SCHOOL_GREETING"]:
+    for name in ["DATABASE_URL", "MIGRATIONS_DIR", "RUVORAQ_HOST", "RUVORAQ_PORT", "RUVORAQ_DOCS", "RUVORAQ_APP_NAME", "SCHOOL_GREETING", "RUVORAQ_REQUEST_ID", "RUVORAQ_REQUEST_LOG", "RUVORAQ_REQUEST_TIMEOUT_MS", "FRONTEND_ORIGIN"]:
         environment.pop(name, None)
     environment["CARGO_TARGET_DIR"] = str(APP / "target/live-tests")
     run(["cargo", "build", "--locked"], env=environment)
     run(["python3", "tests/smoke.py"], env=environment)
     run(["python3", "tests/sqlite.py"], env=environment)
+    run(["python3", "tests/middleware.py"], env=environment)
     if not args.postgres:
-        print("SQLite/general checks complete. PostgreSQL was not requested; run again with --postgres for Experiments 001–010.")
+        print("SQLite/general checks complete. PostgreSQL was not requested; run again with --postgres for Experiments 001–011.")
         return
     if not shutil.which("docker"):
         parser.error("--postgres requires a working Docker daemon.")
@@ -62,7 +63,7 @@ def main():
             environment["RUVORAQ_TEST_POSTGRES_URL"] = "postgres://ruvoraq_test:" + password + "@127.0.0.1:" + port + "/ruvoraq_test"
             run(["cargo", "test", "-p", "ruvoraq-db", "--all-features", "--locked", "--test", "postgres", "--", "--ignored"], cwd=ROOT, env=environment)
             run(["python3", "tests/postgres.py"], env=environment)
-            print("All Experiments 001–010 example checks and five real PostgreSQL framework tests passed.")
+            print("All Experiments 001–011 example checks and five real PostgreSQL framework tests passed.")
         finally:
             if started:
                 subprocess.run(["docker", "stop", "--time", "5", container], check=True, stdout=subprocess.DEVNULL)

@@ -1,6 +1,6 @@
-use std::{net::Ipv4Addr, sync::Arc};
+use std::{net::Ipv4Addr, sync::Arc, time::Duration};
 
-use ruvoraq::{App, Settings};
+use ruvoraq::{App, Cors, Settings};
 
 use apps::{billing::services::BillingService, school::services::SchoolService};
 
@@ -44,7 +44,16 @@ async fn configure(app: App) -> std::io::Result<App> {
         db.migrate(directory).await?;
         db
     };
+    let logging = app.env().get_or("RUVORAQ_REQUEST_LOG", true)?;
+    let timeout_ms = app.env().get_or("RUVORAQ_REQUEST_TIMEOUT_MS", 2000u64)?;
+    let frontend = app
+        .env()
+        .get_or("FRONTEND_ORIGIN", "http://localhost:3000".to_owned())?;
+    let cors = Cors::new([frontend])?;
     Ok(app
+        .request_logging(logging)
+        .request_timeout(Duration::from_millis(timeout_ms))
+        .cors(cors)
         .provide(database)
         .provide(SchoolService::with_greeting(greeting))
         .provide_shared(Arc::new(BillingService::default())))
