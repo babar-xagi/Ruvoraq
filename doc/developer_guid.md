@@ -448,3 +448,20 @@ The 0.1.0 release is now published for all six crates. A fresh publicly installe
 CLI generates version-only projects and the public framework builds with default,
 SQLite and PostgreSQL features. HTTP greeting/docs/module checks and graceful
 shutdown were also verified through the actual registry packages.
+
+
+## 🔎 Experiment 011 architecture
+
+The web adapter owns a Policy per App. Layer order is request IDs/tracing →
+browser CORS → deadline → existing routing/services/panic handling. Separating
+the deadline preserves CORS on timeout errors; genuine preflights receive IDs
+without running handlers, while ordinary OPTIONS retains 405 behavior.
+Cors validates origins at construction, including ports and IPv6. Completion
+events log matched route patterns instead of raw URL values. The RequestId
+extractor reads a request extension. Bootstrap initializes tracing only for an
+enabled logging policy; manual router users choose their own subscriber.
+
+The [middleware guide](middleware_guid.md) covers public behavior. CI verifies
+default/all-feature/MSRV configurations, real live tests and a 100% middleware
+coverage gate. Tag pushes publish the matching checked-in release notes through
+GitHub Actions' built-in token, with contents-write permission only for release.

@@ -20,11 +20,13 @@ async fn hello() -> &'static str {
 [API example](#a-typed-api-in-a-few-lines) · [Testing](doc/testing_guid.md) ·
 [Developer guide](doc/developer_guid.md) · [Roadmap](project.md)
 
-**Project status:** experimental, version `0.1.0`. Development has reached
-Experiment 010. All six packages are published on crates.io as `0.1.0`.
+**Project status:** experimental, version `0.2.0`. Development has reached
+Experiment 011. All six packages are published on crates.io as `0.2.0`.
 Install the CLI from the registry or use the checkout for framework development. Production readiness remains a roadmap objective.
 
-## Why Ruvoraq
+<a id="why-ruvoraq"></a>
+
+## ✨ Why Ruvoraq
 
 | Capability | What you get |
 | --- | --- |
@@ -36,9 +38,12 @@ Install the CLI from the registry or use the checkout for framework development.
 | Interactive documentation | OpenAPI 3.1 and locally bundled Swagger UI. |
 | Explicit configuration | Rust defaults, optional `.env` and typed environment values. |
 | Optional persistence | SQLite or PostgreSQL through SQLx, transactions and versioned migrations. |
+| Middleware | Validated request IDs, structured tracing, explicit CORS and handler timeouts. |
 | Server lifecycle | Graceful Ctrl+C and Unix SIGTERM shutdown. |
 
-## Installation
+<a id="installation"></a>
+
+## 🛠️ Installation
 
 The verified development environment is Linux/WSL2 with Rust and Cargo.
 The workspace uses Rust edition 2024 and declares Rust 1.85 as its minimum;
@@ -49,17 +54,17 @@ For operating-system prerequisites and Rust installation, follow the
 With Rust and Cargo available:
 
 ```bash
-cargo install ruvoraq-cli --version 0.1.0 --locked
+cargo install ruvoraq-cli --version 0.2.0 --locked
 ruvoraq --version
 ```
 
 For PostgreSQL migration commands, install the optional CLI feature:
 
 ```bash
-cargo install ruvoraq-cli --version 0.1.0 --features postgres --locked --force
+cargo install ruvoraq-cli --version 0.2.0 --features postgres --locked --force
 ```
 
-Generated applications use `ruvoraq = "0.1.0"` from crates.io, so a framework
+Generated applications use `ruvoraq = "0.2.0"` from crates.io, so a framework
 checkout is unnecessary. Application database features and CLI database features
 are enabled separately. See [updating your installation](doc/user_guid.md#updating-your-installation).
 
@@ -76,7 +81,9 @@ RUVORAQ_FRAMEWORK_PATH="$HOME/Ruvoraq/crates/ruvoraq" ruvoraq new local_api
 The explicit override adds a local dependency path for unpublished framework
 changes. Keep that checkout available for projects generated with the override.
 
-## Your first application
+<a id="your-first-application"></a>
+
+## 🚀 Your first application
 
 Run these commands from a directory where you keep application projects:
 
@@ -107,7 +114,9 @@ Cargo selects `settings.rs` as the binary entry point.
 `ruvoraq::bootstrap!();` loads `main.rs` and starts the application.
 Cargo creates `Cargo.lock` and `target/` during builds.
 
-## A typed API in a few lines
+<a id="a-typed-api-in-a-few-lines"></a>
+
+## 🧩 A typed API in a few lines
 
 Add the following below the greeting in `src/main.rs`:
 
@@ -158,7 +167,9 @@ The response is HTTP `201` with `{"id":1,"name":"Ada"}`. A blank name returns
 example demonstrates persistence. The route's `status` describes OpenAPI;
 the `created` helper sets the actual HTTP status.
 
-## Interactive API documentation
+<a id="interactive-api-documentation"></a>
+
+## 📚 Interactive API documentation
 
 Request and response models annotated with `#[schema]` appear in OpenAPI.
 Handler doc comments supply descriptions. Swagger UI serves its JavaScript
@@ -170,7 +181,9 @@ Disable documentation endpoints with `RUVORAQ_DOCS=false`.
 See [API documentation](doc/user_guid.md#openapi-and-swagger-ui) for metadata
 behavior and supported schemas.
 
-## Configuration and application modules
+<a id="configuration-and-application-modules"></a>
+
+## ⚙️ Configuration and application modules
 
 Create an optional `.env` in your application root:
 
@@ -193,7 +206,34 @@ The module command generates models, routes and services under `src/apps/school`
 and connects the module to startup. Providers are constructed explicitly in
 a configure hook and accessed through `Inject<T>`.
 
-## CLI reference
+<a id="request-middleware-and-observability"></a>
+
+## 📘 Request middleware and observability
+
+Keep handlers small and configure HTTP policies in settings.rs:
+
+```rust
+fn configure(app: ruvoraq::App) -> std::io::Result<ruvoraq::App> {
+    Ok(app
+        .request_logging(true)
+        .request_timeout(std::time::Duration::from_secs(5))
+        .cors(ruvoraq::Cors::new(["http://localhost:3000"])?))
+}
+
+ruvoraq::bootstrap!(configure);
+```
+
+Replace the existing bootstrap invocation, or extend your existing configure
+hook. Request IDs are enabled by default; logs, CORS and deadlines are opt-in.
+Use RequestId in a handler to read its correlation ID. Browser preflight and
+timeout responses retain the appropriate headers.
+
+The [middleware guide](doc/middleware_guid.md) explains the pipeline, safe log
+fields, environment settings, CORS concepts and cancellation boundaries.
+
+<a id="cli-reference"></a>
+
+## 💻 CLI reference
 
 | Command | Purpose |
 | --- | --- |
@@ -209,7 +249,9 @@ The generator validates package names and refuses non-empty directories,
 existing files and symlink targets. Database migrations require `DATABASE_URL`;
 `MIGRATIONS_DIR` defaults to `migrations` in the CLI.
 
-## Explore the complete example
+<a id="explore-the-complete-example"></a>
+
+## 📦 Explore the complete example
 
 From a source checkout created with the development commands above:
 
@@ -229,7 +271,9 @@ SQLite is the example default. PostgreSQL uses a separate feature and SQL folder
 See the [database walkthrough](doc/user_guid.md#optional-postgresql) and
 [complete testing guide](doc/testing_guid.md) for both backends and manual requests.
 
-## Development and verification
+<a id="development-and-verification"></a>
+
+## 🧪 Development and verification
 
 From the repository root:
 
@@ -247,25 +291,33 @@ cargo install --path crates/ruvoraq-cli --features postgres --locked --force
 python3 examples/app/tests/full_test.py --postgres
 ```
 
+The new middleware module has a measured 100% line/function/region coverage gate.
+Whole-workspace coverage is reported separately in the testing guide.
+
 The runner uses temporary application copies and an owned disposable PostgreSQL
-container. Current evidence includes **77 regular tests per feature configuration,
-127 live checks and five real PostgreSQL tests**. Verification details and
+container. Current evidence includes **92 regular tests per feature configuration,
+146 live checks and five real PostgreSQL tests**. Verification details and
 remaining limits are recorded in the [testing guide](doc/testing_guid.md).
 
-## Documentation and roadmap
+<a id="documentation-and-roadmap"></a>
+
+## 🗺️ Documentation and roadmap
 
 | Resource | Contents |
 | --- | --- |
 | [User guide](doc/user_guid.md) | Installation, first app, APIs, services, configuration and databases. |
+| [Middleware guide](doc/middleware_guid.md) | Request IDs, tracing, CORS, timeouts and their limits. |
 | [Testing guide](doc/testing_guid.md) | Repeatable checks, curl commands and expected responses. |
 | [Developer guide](doc/developer_guid.md) | Architecture, crate boundaries and contribution workflow. |
 | [Project tracker](project.md) | Completed experiments, limitations and planned work. |
 | [Publishing guide](doc/publishing_guid.md) | Registry authentication, package checks and upload workflow. |
 
-Authentication, middleware/observability, jobs, higher-level database tooling
+Authentication, jobs, higher-level database tooling
 and AI capabilities remain future work. Successful certificate-verified PostgreSQL TLS tests remain pending.
 The declared Rust 1.85 minimum now passes the all-feature build check.
 
-## License
+<a id="license"></a>
+
+## 📄 License
 
 Licensed under [Apache-2.0](LICENSE).

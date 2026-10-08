@@ -4,19 +4,19 @@ Ruvoraq aims to make Rust backend development approachable through simple route
 handlers, explicit application composition, and optional batteries. Longer-term
 goals include production operations and provider-independent AI capabilities.
 
-This tracker describes repository work as of **2026-10-04**. Future phases are
+This tracker describes repository work as of **2026-10-07**. Future phases are
 proposals, not delivered features or promised release dates.
 
 ## 📍 Current position
 
-- Version: 0.1.0, published experimental release.
-- Current implementation: Experiment 010, optional PostgreSQL support and consolidated testing.
+- Version: 0.2.0, experimental middleware release preparation.
+- Current implementation: Experiment 011, middleware and observability.
 - Delivery includes Experiment 010 and the fresh comprehensive example; see Git history.
 - One runnable example: school/billing APIs with SQLite or PostgreSQL notes.
-- Verification: 75 regular tests per configuration, five real PostgreSQL tests,
-  and 127 automated live checks, plus direct fresh-example migration/restart checks.
+- Verification: 92 regular tests per configuration, five real PostgreSQL tests,
+  and 146 automated live checks, plus direct fresh-example migration/restart checks.
 - Framework crates: all six packages published to crates.io as 0.1.0.
-- Next proposed phase: request middleware and observability, with scope selected by the maintainer.
+- Next proposed phase: application testing helpers and operational shutdown limits.
 - Delivery identifiers and branch publication are recorded in Git history.
 
 The current foundation is functional and tested. It is not yet a complete
@@ -35,7 +35,8 @@ production platform with authentication, complete operations tooling, or AI.
 | 007 — Configuration | Typed environment snapshots, optional dotenv, built-in settings overrides. | Pushed |
 | 008 — SQLite | Optional database feature, bound SQL, transactions, async setup, durable notes example. | Pushed |
 | 009 — Migrations | Ordered SQL files, checksums, history validation, transactions, CLI status/apply, startup migrations. | Pushed |
-| 010 — PostgreSQL | Opt-in provider, transactions, migration locks, feature-aware CLI, real-server tests, and example. | Verified; included in this delivery |
+| 010 — PostgreSQL | Opt-in provider, transactions, migration locks, feature-aware CLI, real-server tests, and example. | Published |
+| 011 — Middleware | Request IDs, tracing, CORS, timeouts, coverage gate and CI/release automation. | Implemented; verifying release |
 
 These experiments extend one framework; their numbers record actual work.
 Earlier experiment limitations should not be read as current feature limits.
@@ -174,7 +175,7 @@ unverified.
 - Manual builder routes need explicit response wrappers and are not auto-documented.
 - No automatic dependency constructor graph or request-scoped providers.
 - No authentication, authorization, admin, cache, background jobs, or AI APIs.
-- No established public-release compatibility policy or published crates.
+- Public crates exist; a longer-term API compatibility policy remains to be established.
 - Graceful shutdown has no forced deadline for permanently blocked handlers.
 
 ## 🗺️ Current phase and proposed next phases
@@ -206,18 +207,19 @@ Goal: support a server database while retaining a minimal default application.
 - [x] Document backend differences rather than hiding them.
 - [x] Keep SQLx backend dependencies opt-in.
 
-### Experiment 011 — Request middleware and observability (proposed)
+### Experiment 011 — Request middleware and observability (implemented)
 
-Goal: expose useful request diagnostics and explicit HTTP policies while keeping
-application handlers small. Exact APIs and scope remain to be decided.
+Goal delivered: useful request diagnostics and explicit HTTP policies while
+keeping application handlers small. Request IDs, structured tracing, explicit
+CORS and request deadlines are documented in the middleware guide.
 
 ### Later foundation work
 
-- [ ] Request logging, request identifiers, and useful tracing.
-- [ ] Explicit middleware configuration, CORS, and request timeouts.
+- [x] Request logging, request identifiers, and useful tracing.
+- [x] Explicit middleware configuration, CORS, and request timeouts.
 - [ ] A documented application testing interface.
 - [ ] Shutdown deadlines and operational health patterns.
-- [ ] Automated CI with default/all-feature checks and minimum Rust coverage.
+- [x] Automated CI with default/all-feature checks and minimum Rust coverage.
 - [ ] Reproducible packaging and a public API/versioning policy.
 - [ ] Configuration profiles if real application needs justify them.
 
@@ -287,7 +289,7 @@ publication of this verified work. Minimum Rust-toolchain and successful
 certificate-verified PostgreSQL TLS checks remain future work.
 
 Current consolidation verification: **75 regular tests per workspace feature
-configuration, 127 live checks, and five real PostgreSQL server tests passed**.
+configuration, 146 live checks, and five real PostgreSQL server tests passed**.
 Format, build, check and strict Clippy passed for the framework and both example
 backends. The owned PostgreSQL test container and credentials were removed.
 
@@ -313,3 +315,18 @@ time and uploading only the remaining core crate. All six registry versions are
 0.1.0; the original Git tag 0.01 remains unchanged.
 
 The published package source is tagged v0.1.0 at commit d00392c.
+
+
+## 🚀 Experiment 011 release preparation
+
+- [x] Implement validated IDs, contextual tracing, browser policies and deadlines.
+- [x] Add 15 middleware integration tests and a dedicated real-server suite.
+- [x] Preserve 405 for ordinary OPTIONS and CORS/IDs on timeout responses.
+- [x] Make the example dependency portable instead of using a machine-specific path.
+- [x] Add a measured 100% middleware coverage gate and automated CI.
+- [x] Explain concepts with clean guides, emojis and complete examples.
+- [ ] Publish and independently verify all six 0.2.0 packages.
+- [ ] Push v0.2.0 and verify automated GitHub release-note publication.
+
+Coverage boundaries are recorded in [coverage.md](doc/coverage.md); whole-workspace
+coverage is not claimed to be 100%. [Release notes](doc/releases/v0.2.0.md).

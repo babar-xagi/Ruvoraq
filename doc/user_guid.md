@@ -2,13 +2,15 @@
 
 Ruvoraq is an experimental Rust backend framework built around small applications,
 route attributes, and optional features. This guide describes the implementation
-through Experiment 010. Examples build on the generated scaffold; when combining
+through Experiment 011. Examples build on the generated scaffold; when combining
 configuration, services and databases, extend one configure hook and retain one
-bootstrap invocation. All six packages are available on crates.io as version 0.1.0. A framework
+bootstrap invocation. All six packages are available on crates.io as version 0.2.0. A framework
 checkout is optional for application development. See the
 [publishing guide](publishing_guid.md) for the verified release workflow.
 
-## Contents
+<a id="contents"></a>
+
+## 📘 Contents
 
 1. [Installation and environment setup](#installation-and-environment-setup)
 2. [Start an application](#start-an-application)
@@ -22,10 +24,13 @@ checkout is optional for application development. See the
 10. [Versioned SQLite migrations](#versioned-sqlite-migrations)
 11. [Optional PostgreSQL](#optional-postgresql)
 12. [Examples and troubleshooting](#examples-and-troubleshooting)
-13. [Development workflow and release builds](#development-workflow-and-release-builds)
-14. [Current limitations](#current-limitations)
+13. [Middleware and observability](#middleware-and-observability)
+14. [Development workflow and release builds](#development-workflow-and-release-builds)
+15. [Current limitations](#current-limitations)
 
-## Installation and environment setup
+<a id="installation-and-environment-setup"></a>
+
+## 📘 Installation and environment setup
 
 ### Requirements
 
@@ -113,7 +118,7 @@ If a command is unavailable after installation, reopen the terminal or source
 ### Install the CLI from crates.io
 
 ```bash
-cargo install ruvoraq-cli --version 0.1.0 --locked
+cargo install ruvoraq-cli --version 0.2.0 --locked
 ruvoraq --help
 ruvoraq --version
 ```
@@ -122,7 +127,7 @@ No Git checkout is needed to generate and run an application. For PostgreSQL
 migration commands, use:
 
 ```bash
-cargo install ruvoraq-cli --version 0.1.0 --features postgres --locked --force
+cargo install ruvoraq-cli --version 0.2.0 --features postgres --locked --force
 ```
 
 This enables PostgreSQL in the migration CLI; application dependencies still
@@ -143,7 +148,7 @@ ruvoraq --version
 ```
 
 If you already cloned the repository, enter that checkout instead of cloning
-over it. The current version output is `ruvoraq 0.1.0`.
+over it. The current version output is `ruvoraq 0.2.0`.
 The source installation is for contributors and local framework changes.
 By default this CLI also generates registry dependencies. To use your checkout,
 set RUVORAQ_FRAMEWORK_PATH to its crates/ruvoraq directory while generating.
@@ -162,9 +167,9 @@ dependencies still need their own `sqlite` or `postgres` feature.
 For the current published release, reinstall the registry CLI with `--force`:
 
 ```bash
-cargo install ruvoraq-cli --version 0.1.0 --locked --force
+cargo install ruvoraq-cli --version 0.2.0 --locked --force
 # Or retain PostgreSQL support:
-cargo install ruvoraq-cli --version 0.1.0 --features postgres --locked --force
+cargo install ruvoraq-cli --version 0.2.0 --features postgres --locked --force
 ```
 
 Choose one command. Future releases require choosing their published version.
@@ -191,10 +196,12 @@ Building the workspace does not replace the installed CLI. `--force` replaces
 an existing installation; it does not overwrite generated application projects.
 Projects generated with RUVORAQ_FRAMEWORK_PATH use this checkout, so source
 updates affect those projects when they next build. Registry projects resolve
-their declared versions instead. Version `0.1.0` alone does not identify
+their declared versions instead. Version `0.2.0` alone does not identify
 the exact installed experiment; reinstall from the intended Git revision.
 
-## Start an application
+<a id="start-an-application"></a>
+
+## 📘 Start an application
 
 With the CLI installed, create an application in a directory you own:
 
@@ -280,7 +287,9 @@ An existing empty directory is accepted. An existing non-empty directory,
 including hidden entries, is refused; files and symlink targets are refused.
 Errors appear on stderr with a nonzero exit status.
 
-## Routes and responses
+<a id="routes-and-responses"></a>
+
+## 📘 Routes and responses
 
 The attributes `#[get]`, `#[post]`, `#[put]`, `#[patch]`, and `#[delete]`
 register async handlers automatically. Paths start with / and use whole-segment
@@ -340,7 +349,9 @@ For manual App route registration, return an explicit response wrapper such as
 Json or Reply for arbitrary models. Automatic model conversion belongs to the
 route attributes.
 
-## Typed requests and validation
+<a id="typed-requests-and-validation"></a>
+
+## 📘 Typed requests and validation
 
 Use Path for URL captures, Query for query parameters, Json for deserialization,
 and ValidatedJson when a model implements Validate. Put a JSON body extractor
@@ -503,7 +514,9 @@ Framework 5xx errors return a generic internal error without private details.
 Custom raw responses and third-party extractors may have their own error format.
 Validation rules are explicit Rust code; no validation derive is implemented.
 
-## Configuration
+<a id="configuration"></a>
+
+## 📘 Configuration
 
 Keep startup and configuration in settings.rs. The generated defaults use
 localhost and port 8000. Bootstrap loads an optional .env file from the current
@@ -561,7 +574,9 @@ raw values. Strings retain their original contents, including empty strings.
 The configure hook runs after built-in environment settings are applied. A
 manual App builder can opt in with `app.environment(Env::load()?)?`.
 
-## Shared services
+<a id="shared-services"></a>
+
+## 📘 Shared services
 
 Register a service in the settings configure hook with
 `app.provide(service)`, or `app.provide_shared(arc)` when an Arc already exists.
@@ -588,7 +603,9 @@ For mutable shared state, use a suitable synchronization primitive. The school
 example uses a Mutex for student records and an atomic counter for visits.
 Avoid holding a standard mutex guard across an await.
 
-## Application modules
+<a id="application-modules"></a>
+
+## 📘 Application modules
 
 From a generated application's root:
 
@@ -621,7 +638,9 @@ The generated services module starts private. Expose it with
 `pub mod services;` in the module's mod.rs when settings.rs must construct its
 service.
 
-## OpenAPI and Swagger UI
+<a id="openapi-and-swagger-ui"></a>
+
+## 📘 OpenAPI and Swagger UI
 
 Documentation is available by default:
 
@@ -645,14 +664,16 @@ App::docs(false) when you need those paths.
 
 ![Swagger UI showing the school API](../docs/images/swagger-ui.jpg)
 
-## SQLite persistence
+<a id="sqlite-persistence"></a>
+
+## 📘 SQLite persistence
 
 SQLite support is optional. Add the feature to your application's existing
 Ruvoraq dependency; preserve its existing version or source-development path:
 
 ```toml
 [dependencies.ruvoraq]
-version = "0.1.0"
+version = "0.2.0"
 features = ["sqlite"]
 ```
 
@@ -834,7 +855,9 @@ Stop and restart the server; the note remains. Open `/docs` to send the same
 requests through Swagger UI. Read/update/delete handlers and full migration
 failure tests are available in the [comprehensive example](../examples/app/README.md).
 
-## Versioned SQLite migrations
+<a id="versioned-sqlite-migrations"></a>
+
+## 📘 Versioned SQLite migrations
 
 Experiment 009 adds forward-only migrations. Create a migrations/ directory in
 your application's root and add files with positive numeric versions:
@@ -923,14 +946,16 @@ The notes example's first migration uses CREATE TABLE IF NOT EXISTS to preserve
 the known Experiment 008 notes schema. This is not general schema detection or
 an automatic baseline for arbitrary legacy databases.
 
-## Optional PostgreSQL
+<a id="optional-postgresql"></a>
 
-Experiment 010 adds an explicit PostgreSQL adapter. Enable it in your
+## 📘 Optional PostgreSQL
+
+Experiment 011 adds an explicit PostgreSQL adapter. Enable it in your
 application's existing Ruvoraq dependency:
 
 ```toml
 [dependencies.ruvoraq]
-version = "0.1.0"
+version = "0.2.0"
 features = ["postgres"]
 ```
 
@@ -1066,7 +1091,9 @@ want to discard its container-local database, run
 data volume. For disposable automated testing, use the full runner instead of
 maintaining this manual container.
 
-## Examples and troubleshooting
+<a id="examples-and-troubleshooting"></a>
+
+## 📘 Examples and troubleshooting
 
 One comprehensive application now combines the school/billing API and notes
 database examples. SQLite is the default; PostgreSQL is an explicit feature.
@@ -1110,7 +1137,29 @@ Process environment variables override .env for this setting too.
 For contributor workflows, see the [developer guide](developer_guid.md).
 For completed experiments and planned work, see [project tracking](../project.md).
 
-## Development workflow and release builds
+<a id="middleware-and-observability"></a>
+
+## 📘 Middleware and observability
+
+🧠 A middleware policy runs around your handler. It can attach a request ID,
+record safe diagnostics, respond to browser preflights or stop waiting for a
+slow future. Your main.rs can remain route-only.
+
+| Feature | Default | Configure |
+| --- | --- | --- |
+| Request IDs | On | RUVORAQ_REQUEST_ID or App::request_ids |
+| Request logs | Off | RUVORAQ_REQUEST_LOG or App::request_logging |
+| Timeout | Off | RUVORAQ_REQUEST_TIMEOUT_MS or App::request_timeout |
+| CORS | Off | App::cors(Cors::new([...])?) |
+
+📚 Follow the [step-by-step middleware guide](middleware_guid.md) for examples,
+expected headers, log records, environment controls and timeout limitations.
+The comprehensive example enables these policies deliberately. Environment is
+loaded before configure, so later explicit builder calls can override it.
+
+<a id="development-workflow-and-release-builds"></a>
+
+## 📘 Development workflow and release builds
 
 ### Working on your application
 
@@ -1190,18 +1239,20 @@ For repeatable framework and HTTP verification, follow the
 the single comprehensive application, isolated test databases and expected
 manual HTTP responses.
 
-## Current limitations
+<a id="current-limitations"></a>
+
+## 📘 Current limitations
 
 | Area | Current boundary |
 | --- | --- |
-| Distribution | Version 0.1.0 is published on crates.io; source paths are optional development overrides. |
+| Distribution | Version 0.2.0 is published on crates.io; source paths are optional development overrides. |
 | Development server | Build/run only; no automatic file watching. |
 | Validation | Explicit Validate implementation; no validation derive. |
 | Dependency injection | Explicit per-App providers; no automatic construction or request-scoped graph. |
 | Database tooling | SQLx queries and forward-only migrations; no ORM, add-db command or reversible migration generator. |
 | API metadata | Known extractors/models are supported; custom extractors and dynamic statuses need additional metadata. |
 | Platform verification | Linux/WSL2 verified; equivalent native Windows/macOS live runs are pending. |
-| Deployment | Authentication, jobs and broader operations tooling remain planned. |
+| Deployment | Request policies and tracing are available; authentication, jobs and broader operations tooling remain planned. |
 | Compatibility | The all-feature workspace passes Rust 1.85.0; continue checking the minimum toolchain for future releases. |
 | PostgreSQL TLS | Rustls support is enabled; successful certificate-verified TLS tests remain pending. |
 

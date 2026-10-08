@@ -1,4 +1,4 @@
-# 🧪 Experiments 001–010: complete testing guide
+# 🧪 Experiments 001–011: complete testing guide
 
 Run these commands inside WSL2. The repository now contains one example,
 `examples/app`. It combines school/billing APIs with persistent notes. School
@@ -67,9 +67,10 @@ pointing to a dedicated, initially empty test database; prefer the Docker runner
 | 008 | SQLite CRUD, bound SQL inputs, persistence and concurrent writes. |
 | 009 | Migration status/apply/repeat, startup upgrades, history drift, rollback and retry. |
 | 010 | PostgreSQL CRUD, parameters, persistence, migrations, real-server locking/transaction tests. |
+| 011 | Request IDs, tracing, CORS/preflight, timeouts, cancellation, privacy and config failures. |
 
-Current verified results: **77 regular framework tests per feature configuration,
-127 live checks (70 general, 30 SQLite, 27 PostgreSQL), and five real PostgreSQL
+Current verified results: **92 regular framework tests per feature configuration,
+146 live checks (70 general, 30 SQLite, 19 middleware, 27 PostgreSQL), and five real PostgreSQL
 server tests**. Both example backends pass strict Clippy.
 
 Coverage describes implemented behavior; it is not a production certification.
@@ -126,6 +127,7 @@ ruvoraq new all_features_api
 cd all_features_api
 cp /home/xagi/Ruvoraq/examples/app/Cargo.toml Cargo.toml
 sed -i 's/name = "app"/name = "all_features_api"/g' Cargo.toml
+sed -i "s|../../crates/ruvoraq|$HOME/Ruvoraq/crates/ruvoraq|g" Cargo.toml
 cp -r /home/xagi/Ruvoraq/examples/app/src/. src/
 cp -r /home/xagi/Ruvoraq/examples/app/migrations .
 cp -r /home/xagi/Ruvoraq/examples/app/tests .
@@ -284,3 +286,21 @@ automated test runner handles this selection in temporary copies for you.
 | Docker PostgreSQL test fails | Check `docker info`, image/network availability and the actual reported error. |
 
 No commits or pushes are performed by these test scripts.
+
+
+## 📊 Measured coverage
+
+```bash
+CARGO_LLVM_COV_TARGET_DIR=target/coverage-middleware cargo llvm-cov \
+  -p ruvoraq-web --test middleware --json --output-path target/middleware-coverage.json
+python3 scripts/check_middleware_coverage.py target/middleware-coverage.json
+CARGO_LLVM_COV_TARGET_DIR=target/coverage-workspace cargo llvm-cov \
+  --workspace --all-features --json --output-path target/workspace-coverage.json
+```
+
+Separate target directories avoid mixing stale binary/source mappings. The gate
+requires 100% production middleware lines, functions and regions, without hiding
+its code. Whole-workspace coverage is separately reported; it is not 100%, and
+this command does not enable branch instrumentation. Recorded release metrics
+are listed in [the coverage report](coverage.md). Broader coverage gaps include
+legacy failure paths and platform-specific behavior.

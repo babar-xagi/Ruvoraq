@@ -1,7 +1,7 @@
 # Publishing Ruvoraq to crates.io
 
-All six packages are **published as 0.1.0** and their public installation has
-been verified. The existing Git tag
+The next coordinated release is **0.2.0**. The previous 0.1.0 release remains
+available; upload verification for the new release follows the same workflow. The existing Git tag
 `0.01` is a repository label; Cargo package versions use semantic versioning.
 Publishing preparation adds versioned internal dependencies, per-crate metadata,
 README/license files and portable registry-based project generation.
@@ -91,7 +91,7 @@ After all packages are available, use an installation root separate from your
 source-development CLI:
 
 ```bash
-cargo install ruvoraq-cli --version 0.1.0 --features postgres --locked \
+cargo install ruvoraq-cli --version 0.2.0 --features postgres --locked \
   --root "$HOME/ruvoraq-registry-check"
 mkdir -p "$HOME/ruvoraq-registry-projects"
 cd "$HOME/ruvoraq-registry-projects"
